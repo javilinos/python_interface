@@ -14,7 +14,11 @@
 
 import rclpy
 from rclpy import publisher
+from rclpy import time
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
+from time import sleep
 
 from std_msgs.msg import String
 from aerostack2_msgs.msg import TrajectoryWaypoints
@@ -25,13 +29,21 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(TrajectoryWaypoints, '/drone0/motion_reference/waypoints', 10)
+        
+        # qos_profile = QoSProfile(depth=10)
+        # qos_profile.reliability = QoSReliabilityPolicy.RELIABLE
 
-    def send_points(self,point_list,speed):
+        self.publisher_ = self.create_publisher(TrajectoryWaypoints, '/drone0/motion_reference/waypoints',10)
+        print('waiting')
+        sleep(1)
+        
+
+    def send_points(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW):
         msg = TrajectoryWaypoints()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "odom"
-        msg.yaw_mode = TrajectoryWaypoints.KEEP_YAW
+        # msg.yaw_mode = TrajectoryWaypoints.KEEP_YAW
+        msg.yaw_mode = yaw_mode
         poses = []
         for point in point_list:
             pose = PoseStamped()
@@ -54,6 +66,16 @@ def main(args=None):
 
     point_lists = [[0,0,1]]
     minimal_publisher.send_points(point_lists,0.5)
+    #sleep(6)
+    #point_lists = [[0,0,2],[2,4,3],[4,0,2]]
+    #minimal_publisher.send_points(point_lists,2.5,TrajectoryWaypoints.PATH_FACING)
+    #sleep(15)
+    #point_lists = [[0,0,-5]]
+    #minimal_publisher.send_points(point_lists,0.5,TrajectoryWaypoints.KEEP_YAW)
+
+
+
+    
 
     rclpy.spin(minimal_publisher)
 
