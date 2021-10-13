@@ -65,10 +65,12 @@ def main(args=None):
     minimal_publisher = MinimalPublisher()
 
     point_lists = [[0,0,1]]
+    # point_lists = [[0,0,-2]]
+    # point_lists = [[0,0,1],[-1,-1,1],[1,-1,1]]
+    #point_lists = [[3,4,3],[3,4,1],[3,4,0]]
     minimal_publisher.send_points(point_lists,0.5)
     #sleep(6)
-    #point_lists = [[0,0,2],[2,4,3],[4,0,2]]
-    #minimal_publisher.send_points(point_lists,2.5,TrajectoryWaypoints.PATH_FACING)
+    # minimal_publisher.send_points(point_lists,6.5,TrajectoryWaypoints.PATH_FACING)
     #sleep(15)
     #point_lists = [[0,0,-5]]
     #minimal_publisher.send_points(point_lists,0.5,TrajectoryWaypoints.KEEP_YAW)
