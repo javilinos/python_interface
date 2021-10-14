@@ -20,8 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'sub_interface_node = python_interface.subscriber_member_function:main',
-            'pub_interface_node = python_interface.publisher_member_function:main',
+            'sub_interface_node = python_interface.send_follow_path:main',
+            'pub_interface_node = python_interface.pubish_trajectory_waypoints:main',
         ],
     },
 )

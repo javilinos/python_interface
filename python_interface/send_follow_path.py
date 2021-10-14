@@ -92,19 +92,22 @@ def main(args=None):
 
 
     point_list = [[0,0,1]]
-    # point_list = [[3,4,3],[3,4,1],[3,4,0]]
+    # point_list = [[1,2,1],[-1,-1,1],[0,0,1]]
 
     SendFollowPath(point_list,0.5,TrajectoryWaypoints.KEEP_YAW)
 
     print("Take off completed successfully")
 
-    # point_list = [[0,0,5]]
-    point_list = [[3,3,3],[-3,3,3],[-3,-3,3],[3,-3,3],[0,0,3]]
-    SendFollowPath(point_list,2,TrajectoryWaypoints.PATH_FACING)
+    # # point_list = [[0,0,5]]
+    dist = 1.5
+    height = 1.5
+    point_list = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height],[0,0,height]]
+    SendFollowPath(point_list,2,TrajectoryWaypoints.KEEP_YAW)
+    SendFollowPath(point_list,1.5,TrajectoryWaypoints.PATH_FACING)
 
     print("Path completed successfully")
 
-    point_list = [[0,0,-5]]
+    point_list = [[0,0,-1]]
     SendFollowPath(point_list,0.3,TrajectoryWaypoints.KEEP_YAW)
 
     print("Landing completed successfully")
