@@ -22,10 +22,16 @@ from geometry_msgs.msg import PoseStamped
 
 class SendFollowPath(Node):
 
-    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW):
+    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW, drone_id='drone0'):
         rclpy.init(args=None)
         super().__init__('send_follow_path_action_client')
-        self._action_client = ActionClient(self, FollowPath, '/drone0/FollowPathBehaviour')
+        
+        action_name = 'FollowPathBehaviour'
+        
+        if self.get_namespace() == '/':
+            action_name = drone_id + '/' + action_name
+
+        self._action_client = ActionClient(self, FollowPath, action_name)
         self.sendPath(point_list,speed,yaw_mode)
         
     def sendPath(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW):
@@ -59,13 +65,6 @@ class SendFollowPath(Node):
 
         rclpy.spin(self)
 
-        # future = self._action_client.send_goal_async(goal_msg)
-        # if future:
-        #     rclpy.spin_until_future_complete(self, future)
-        # else:
-        #     print("ERROR SENDING MSGS")
-        #     exit(1)
-
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
@@ -88,8 +87,6 @@ class SendFollowPath(Node):
 
 
 def main(args=None):
-    # rclpy.init(args=args)
-
 
     point_list = [[0,0,1]]
     # point_list = [[1,2,1],[-1,-1,1],[0,0,1]]
@@ -114,5 +111,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-
     main()

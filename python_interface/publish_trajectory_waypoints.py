@@ -27,13 +27,15 @@ from geometry_msgs.msg import PoseStamped
 
 class MinimalPublisher(Node):
 
-    def __init__(self):
+    def __init__(self, drone_id='drone0'):
         super().__init__('minimal_publisher')
-        
-        # qos_profile = QoSProfile(depth=10)
-        # qos_profile.reliability = QoSReliabilityPolicy.RELIABLE
 
-        self.publisher_ = self.create_publisher(TrajectoryWaypoints, '/drone0/motion_reference/waypoints',10)
+        topic_name = 'motion_reference/waypoints'
+        
+        if self.get_namespace() == '/':
+            topic_name = drone_id + '/' + topic_name
+
+        self.publisher_ = self.create_publisher(TrajectoryWaypoints, topic_name, 10)
         print('waiting')
         sleep(1)
         
