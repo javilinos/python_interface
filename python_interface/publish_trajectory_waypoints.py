@@ -19,6 +19,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 from rclpy.qos import QoSProfile
 from time import sleep
+import random
 
 from std_msgs.msg import String
 from aerostack2_msgs.msg import TrajectoryWaypoints
@@ -36,8 +37,8 @@ class MinimalPublisher(Node):
             topic_name = drone_id + '/' + topic_name
 
         self.publisher_ = self.create_publisher(TrajectoryWaypoints, topic_name, 10)
-        print('waiting')
-        sleep(1)
+        # print('waiting')
+        sleep(0.1)
         
 
     def send_points(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW):
@@ -64,13 +65,25 @@ class MinimalPublisher(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    minimal_publisher = MinimalPublisher()
+    minimal_publisher = MinimalPublisher(drone_id="drone_sim_0")
 
-    point_lists = [[0,0,1]]
     # point_lists = [[0,0,-2]]
-    # point_lists = [[0,0,1],[-1,-1,1],[1,-1,1]]
-    #point_lists = [[3,4,3],[3,4,1],[3,4,0]]
-    minimal_publisher.send_points(point_lists,0.5)
+    # point_lists = [[0.0,0,1],[-1,-1,1],[1,-1,1]]
+    
+    point_lists = [[0,0,1]]
+    point_lists = [[3,2,5],[-3,4,3],[3,-4,4]]
+
+    # add random noise to the last points of the list
+    for i in range(len(point_lists)):
+        point_lists[i][0] += 0.1*(2*random.random()-1)
+        point_lists[i][1] += 0.1*(2*random.random()-1)
+        point_lists[i][2] += 0.1*(2*random.random()-1)
+         
+ 
+    # point_lists = [[3,0,5],[0,0,5],[-3,0,5]]
+    # point_lists = point_lists[::-1]
+    # point_lists = [[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4]]
+    minimal_publisher.send_points(point_lists,2.5,TrajectoryWaypoints.PATH_FACING)
     #sleep(6)
     # minimal_publisher.send_points(point_lists,6.5,TrajectoryWaypoints.PATH_FACING)
     #sleep(15)
@@ -78,10 +91,7 @@ def main(args=None):
     #minimal_publisher.send_points(point_lists,0.5,TrajectoryWaypoints.KEEP_YAW)
 
 
-
-    
-
-    rclpy.spin(minimal_publisher)
+    # rclpy.spin(minimal_publisher)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically

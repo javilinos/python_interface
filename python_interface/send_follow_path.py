@@ -22,7 +22,7 @@ from geometry_msgs.msg import PoseStamped
 
 class SendFollowPath(Node):
 
-    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW, drone_id='drone0'):
+    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW, drone_id='drone101'):
         rclpy.init(args=None)
         super().__init__('send_follow_path_action_client')
         
@@ -88,10 +88,11 @@ class SendFollowPath(Node):
 
 def main(args=None):
 
-    point_list = [[0,0,1]]
+    point_list = [[0,0,2]]
     # point_list = [[1,2,1],[-1,-1,1],[0,0,1]]
 
     SendFollowPath(point_list,0.5,TrajectoryWaypoints.KEEP_YAW)
+
 
     print("Take off completed successfully")
 
@@ -100,7 +101,7 @@ def main(args=None):
     height = 1.5
     point_list = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height],[0,0,height]]
     SendFollowPath(point_list,2,TrajectoryWaypoints.KEEP_YAW)
-    SendFollowPath(point_list,1.5,TrajectoryWaypoints.PATH_FACING)
+    # SendFollowPath(point_list,1.5,TrajectoryWaypoints.PATH_FACING)
 
     print("Path completed successfully")
 
