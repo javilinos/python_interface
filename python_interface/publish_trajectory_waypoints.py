@@ -28,6 +28,8 @@ from aerostack2_msgs.msg import TrajectoryWaypoints
 from geometry_msgs.msg import PoseStamped
 
 
+POSITION_THRESHOLD = 0.15
+
 class MinimalPublisher():
 
     def __init__(self, drone_interface: DroneInterface):
@@ -55,7 +57,8 @@ class MinimalPublisher():
         while landed == False:
             drone_height=self.drone_interface.get_position()[2] 
             print("Drone height : ", drone_height)
-            if drone_height < land_height:
+            if drone_height < land_height :  
+
                 landed = True
             sleep(0.1)
         print("Landed")
@@ -72,7 +75,8 @@ class MinimalPublisher():
             drone_height=position[2]
 
             print("Drone height : ", drone_height)
-            if drone_height >= height:
+            if drone_height > height-POSITION_THRESHOLD  \
+                and drone_height  < height + POSITION_THRESHOLD :
                 took_off = True
             sleep(0.1)
 
@@ -101,46 +105,20 @@ class MinimalPublisher():
 def main(args=None):
     rclpy.init(args=args)
 
-    drone_interface = DroneInterface("drone_sim_11")
+    drone_interface = DroneInterface("drone_sim_0")
     minimal_publisher = MinimalPublisher(drone_interface)
 
-    # point_lists = [[0,0,-2]]
-    # point_lists = [[0.0,0,1],[-1,-1,1],[1,-1,1]]
     
     minimal_publisher.take_off()
-    sleep(1)
-    minimal_publisher.land()
+    # minimal_publisher.land()
     
-    # point_lists = [[0,0,1]]
     # point_lists = [[3,2,5],[-3,4,3],[3,-4,4]]
 
-    # add random noise to the last points of the list
-    # for i in range(len(point_lists)):
-    #     point_lists[i][0] += 0.1*(2*random.random()-1)
-    #     point_lists[i][1] += 0.1*(2*random.random()-1)
-    #     point_lists[i][2] += 0.1*(2*random.random()-1)
-         
- 
-    # point_lists = [[3,0,5],[0,0,5],[-3,0,5]]
-    # point_lists = point_lists[::-1]
-    # point_lists = [[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4],[3,2,5],[3,4,3],[3,-4,4]]
-    # minimal_publisher.send_points(point_lists,0.5)
     # minimal_publisher.send_points(point_lists,2.5,TrajectoryWaypoints.PATH_FACING)
-    #sleep(6)
-    # minimal_publisher.send_points(point_lists,6.5,TrajectoryWaypoints.PATH_FACING)
-    #sleep(15)
-    #point_lists = [[0,0,-5]]
-    #minimal_publisher.send_points(point_lists,0.5,TrajectoryWaypoints.KEEP_YAW)
-
-
-    # rclpy.spin(minimal_publisher)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
+ 
     
-    # minimal_publisher.destroy_node()
-    # rclpy.shutdown()
+    minimal_publisher.drone_interface.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
