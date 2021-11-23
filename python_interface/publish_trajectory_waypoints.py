@@ -24,7 +24,7 @@ import random
 from drone_interface import DroneInterface
 
 from std_msgs.msg import String
-from aerostack2_msgs.msg import TrajectoryWaypoints
+from as2_msgs.msg import TrajectoryWaypoints
 from geometry_msgs.msg import PoseStamped
 
 
@@ -48,7 +48,7 @@ class MinimalPublisher():
         # print('waiting')
         sleep(0.6)
 
-    def land(self,speed = 0.3,land_height = -1.0):
+    def land(self,speed = 0.2,land_height = -1.0):
         land_points = self.drone_interface.get_position()
         land_points[2] = land_height
         print("Landing at : ", land_points)
@@ -105,16 +105,16 @@ class MinimalPublisher():
 def main(args=None):
     rclpy.init(args=args)
 
-    drone_interface = DroneInterface("drone_sim_0")
+    drone_interface = DroneInterface("drone_sim_11")
     minimal_publisher = MinimalPublisher(drone_interface)
 
     
     minimal_publisher.take_off()
     # minimal_publisher.land()
     
-    # point_lists = [[3,2,5],[-3,4,3],[3,-4,4]]
-
-    # minimal_publisher.send_points(point_lists,2.5,TrajectoryWaypoints.PATH_FACING)
+    point_lists = [[0,0,2]]
+    speed = 5.0
+    minimal_publisher.send_points(point_lists,speed,TrajectoryWaypoints.PATH_FACING)
  
     
     minimal_publisher.drone_interface.destroy_node()

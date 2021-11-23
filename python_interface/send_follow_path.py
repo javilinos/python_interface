@@ -16,13 +16,15 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 
-from aerostack2_msgs.action import FollowPath
-from aerostack2_msgs.msg import TrajectoryWaypoints
+from as2_msgs.action import FollowPath
+from as2_msgs.msg import TrajectoryWaypoints
 from geometry_msgs.msg import PoseStamped
+
+import time
 
 class SendFollowPath(Node):
 
-    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW, drone_id='drone101'):
+    def __init__(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW, drone_id='drone_sim_11'):
         rclpy.init(args=None)
         super().__init__('send_follow_path_action_client')
         
@@ -88,28 +90,63 @@ class SendFollowPath(Node):
 
 def main(args=None):
 
-    point_list = [[0,0,2]]
-    # point_list = [[1,2,1],[-1,-1,1],[0,0,1]]
+    time_sleep = 1
+    time_0 = time.time()
 
-    SendFollowPath(point_list,0.5,TrajectoryWaypoints.KEEP_YAW)
-
-
+    point_list = [[0,0,1]]
+    speed = 0.5
+    SendFollowPath(point_list,speed,TrajectoryWaypoints.KEEP_YAW)
     print("Take off completed successfully")
+    time.sleep(time_sleep)
 
-    # # point_list = [[0,0,5]]
-    dist = 1.5
-    height = 1.5
-    point_list = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height],[0,0,height]]
-    SendFollowPath(point_list,2,TrajectoryWaypoints.KEEP_YAW)
-    # SendFollowPath(point_list,1.5,TrajectoryWaypoints.PATH_FACING)
-
+    point_list = [[0,0,2]]
+    speed = 0.5
+    SendFollowPath(point_list,speed,TrajectoryWaypoints.KEEP_YAW)
     print("Path completed successfully")
+    time.sleep(time_sleep)
 
-    point_list = [[0,0,-1]]
+    point_list = [[0,0,3]]
+    speed = 0.5
+    SendFollowPath(point_list,speed,TrajectoryWaypoints.KEEP_YAW)
+    print("Path completed successfully")
+    time.sleep(time_sleep)
+
+    speed = 1.0
+    height = 3.0
+    dist = 1.5
+    
+    point_list = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height],[0,0,height]]
+    for point in point_list:
+        SendFollowPath([point],speed,TrajectoryWaypoints.KEEP_YAW)
+        time.sleep(time_sleep)
+    # SendFollowPath(point_list,1.5,TrajectoryWaypoints.PATH_FACING)
+    print("Path completed successfully")
+    time.sleep(time_sleep)
+
+    speed = 1.0
+    point_list = []
+    height = 2.5
+    points = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height]]
+    for point in points:
+        point_list.append(point)
+
+    height = 1.5
+    points = [[dist,dist,height],[-dist,dist,height],[-dist,-dist,height],[dist,-dist,height],[0,0,height]]
+    for point in points:
+        point_list.append(point)
+
+    SendFollowPath(point_list,speed,TrajectoryWaypoints.KEEP_YAW)
+    print("Path completed successfully")
+    print("Time spent: ", time.time() - time_0)
+    time.sleep(time_sleep)
+
+    point_list = [[0,0,-0.5]]
     SendFollowPath(point_list,0.3,TrajectoryWaypoints.KEEP_YAW)
 
     print("Landing completed successfully")
+    print("Time spent: ", time.time() - time_0)
 
+    
 
 if __name__ == '__main__':
     main()
