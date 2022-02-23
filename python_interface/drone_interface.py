@@ -8,17 +8,21 @@ from rclpy.qos import QoSProfile
 from time import sleep
 
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
 from rclpy.timer import Rate
 
 
 class DroneInterface(Node):
     pose = [0,0,0]
     odom_lock = threading.Lock()
+    fix = [0,0,0]
+    gps_lock = threading.Lock()
 
     def __init__(self,drone_id = "drone0"):
         super().__init__(f'{drone_id}_interface')
         self.namespace = drone_id
         self.odom_sub = self.create_subscription(Odometry, f'{self.namespace}/self_localization/odom', self.odometry_callback, QoSProfile(depth=10))
+        self.gps_sub = self.create_subscription(NavSatFix, f'{self.namespace}/platform/gps', self.gps_callback, QoSProfile(depth=10))
         
         spin_thread = threading.Thread(target=self.auto_spin,daemon=True)
         spin_thread.start()
@@ -39,11 +43,24 @@ class DroneInterface(Node):
     def odometry_callback(self, msg):
         self.pose = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
         
-
     @odom_lock_decor
     def get_position(self):
         # print(self.pose)
         return self.pose.copy()
+
+    def gps_lock_decor(func):
+        def wrapper(self, *args, **kwargs):
+            with self.gps_lock:
+                return func(self, *args, **kwargs)
+        return wrapper
+
+    @gps_lock_decor
+    def gps_callback(self, msg):
+        self.fix = [msg.latitude/1e7, msg.longitude/1e7, msg.altitude/1e3]
+
+    @gps_lock_decor
+    def get_gps_pose(self):
+        return self.fix.copy()
 
     def auto_spin(self):
         while rclpy.ok():
@@ -53,7 +70,7 @@ class DroneInterface(Node):
 
 if __name__ == '__main__':
     rclpy.init()
-    drone_interface = DroneInterface("drone_sim_11")
+    drone_interface = DroneInterface("drone_sim_8")
     
     while rclpy.ok():
         sleep(0.1)
