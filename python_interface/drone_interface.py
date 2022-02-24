@@ -14,7 +14,7 @@ from sensor_msgs.msg import NavSatFix
 from rclpy.timer import Rate
 from geometry_msgs.msg import Quaternion
 from as2_msgs.action import FollowPath
-from as2_msgs.msg import TrajectoryWaypoints
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import PoseStamped
 from action_msgs.msg import GoalStatus
 
@@ -89,6 +89,8 @@ class SendFollowPath:
 
 
 class DroneInterface(Node):
+    info = [0, 0, 0, 0, 0]
+    info_lock = threading.Lock()
     pose = [0,0,0]
     orientation = [0,0,0]
     odom_lock = threading.Lock()
@@ -98,8 +100,9 @@ class DroneInterface(Node):
     def __init__(self,drone_id = "drone0"):
         super().__init__(f'{drone_id}_interface')
         self.namespace = drone_id
-        self.odom_sub = self.create_subscription(Odometry, f'{self.namespace}/self_localization/odom', self.odometry_callback, QoSProfile(depth=10))
-        self.gps_sub = self.create_subscription(NavSatFix, f'{self.namespace}/platform/gps', self.gps_callback, QoSProfile(depth=10))
+        self.info_sub = self.create_subscription(PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, QoSProfile(depth=10))
+        self.odom_sub = self.create_subscription(Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, QoSProfile(depth=10))
+        self.gps_sub = self.create_subscription(NavSatFix, f'{self.get_drone_id()}/platform/gps', self.gps_callback, QoSProfile(depth=10))
 
         self.globals = []
         self.locals = []
@@ -112,10 +115,26 @@ class DroneInterface(Node):
         spin_thread.start()
 
         sleep(0.5)
-        print(f'{self.namespace} interface initialized')
+        print(f'{self.get_drone_id()} interface initialized')
     
     def get_drone_id(self):
         return self.namespace
+
+    def info_lock_decor(func):
+        def wrapper(self,*args, **kwargs):
+            with self.info_lock:
+                return func(self,*args, **kwargs)
+        return wrapper
+    
+    @info_lock_decor
+    def info_callback(self, msg):
+        self.info = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state, 
+                     msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode, 
+                     msg.current_control_mode.reference_frame]
+        
+    @info_lock_decor
+    def get_info(self):
+        return self.info.copy()
 
     def odom_lock_decor(func):
         def wrapper(self,*args, **kwargs):
