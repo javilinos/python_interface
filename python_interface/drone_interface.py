@@ -21,6 +21,12 @@ from action_msgs.msg import GoalStatus
 import math
 
 
+STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
+YAW_MODE = ["YAW_ANGLE", "YAW_SPEED"]
+CONTROL_MODE = ["POSITION_MODE", "SPEED_MODE", "SPEED_IN_A_PLANE", "ACCEL_MODE", "ATTITUDE_MODE", "ACRO_MODE", "UNSET"]
+REFERENCE_FRAME = ["LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
+
+
 def euler_from_quaternion(x, y, z, w):
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -133,8 +139,13 @@ class DroneInterface(Node):
                      msg.current_control_mode.reference_frame]
         
     @info_lock_decor
-    def get_info(self):
+    def __get_info(self):
         return self.info.copy()
+
+    def get_info(self):
+        info = self.__get_info()
+        return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]), "state": STATE[info[3]], 
+                "yaw_mode": YAW_MODE[info[4]], "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
 
     def odom_lock_decor(func):
         def wrapper(self,*args, **kwargs):
