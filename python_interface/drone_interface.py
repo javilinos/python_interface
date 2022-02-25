@@ -1,3 +1,4 @@
+import logging
 from matplotlib.pyplot import rc
 import rclpy, threading
 from rclpy import publisher, spin_once
@@ -140,8 +141,12 @@ class DroneInterface(Node):
     fix = [0,0,0]
     gps_lock = threading.Lock()
 
-    def __init__(self,drone_id = "drone0"):
+    def __init__(self,drone_id = "drone0", verbose=True):
         super().__init__(f'{drone_id}_interface')
+
+        if not verbose:
+            self.get_logger().set_level(logging.WARN)
+
         self.namespace = drone_id
         self.info_sub = self.create_subscription(PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, QoSProfile(depth=10))
         self.odom_sub = self.create_subscription(Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, QoSProfile(depth=10))
@@ -266,6 +271,28 @@ class DroneInterface(Node):
             # return
 
         self.__follow_path(self.locals, speed, TrajectoryWaypoints.PATH_FACING)
+        self.locals = []
+        self.globals = []
+
+    # TEMPORAL
+    def follow_gps_wp(self, wp_list, speed=1.0):
+        for wp in wp_list:
+            msg = NavSatFix()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "wgs84"
+            msg.latitude = float(wp[0])
+            msg.longitude = float(wp[1])
+            msg.altitude = float(wp[2])
+            self.fix_pub_.publish(msg)
+        
+        sleep(1)
+        while len(wp_list) != len(self.locals):
+            sleep(0.5)
+            # return
+
+        for pnt in self.locals:
+            self.__follow_path([pnt], speed, TrajectoryWaypoints.PATH_FACING)
+        
         self.locals = []
         self.globals = []
 
