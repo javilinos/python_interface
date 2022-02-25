@@ -13,9 +13,9 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from rclpy.timer import Rate
 from geometry_msgs.msg import Quaternion
-from as2_msgs.action import FollowPath
+from as2_msgs.action import FollowPath, GoToWaypoint
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
 from action_msgs.msg import GoalStatus
 
 import math
@@ -49,21 +49,27 @@ def euler_from_quaternion(x, y, z, w):
      
     return roll_x, pitch_y, yaw_z # in radians
 
+class ActionHandler:
+    TIMEOUT = 3  # seconds
 
-class SendFollowPath:
-    def __init__(self, drone, path):
-        self._parent = drone
+    class ActionNotAvailable(Exception):
+        pass
 
-        self._action_client = ActionClient(self._parent, FollowPath, f'{self._parent.namespace}/FollowPathBehaviour')
-        # self._action_client = self._parent.action_client
+    class GoalRejected(Exception):
+        pass
 
-        goal_msg = FollowPath.Goal()
-        goal_msg.trajectory_waypoints = path
+    class GoalFailed(Exception):
+        pass
 
-        self._action_client.wait_for_server()  # Waiting to action to be available
+    def __init__(self, action_client, goal_msg, logger):
+        self._logger = logger
+
+        # Wait for Action availability
+        if not action_client.wait_for_server(timeout_sec=self.TIMEOUT):
+            raise self.ActionNotAvailable('Action Not Available')
 
         # Sending goal
-        send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        send_goal_future = action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
 
         # Waiting to sending goal result
         while not send_goal_future.done():
@@ -72,9 +78,8 @@ class SendFollowPath:
         # Check if goal is accepted
         goal_handle = send_goal_future.result()
         if not goal_handle.accepted:
-            self._parent.get_logger().info('Goal rejected!')
-            return
-        self._parent.get_logger().info('Goal accepted :)')
+            raise self.GoalRejected('Goal Rejected')
+        self._logger.info('Goal accepted :)')
 
         # Getting result
         get_result_future = goal_handle.get_result_async()
@@ -84,14 +89,46 @@ class SendFollowPath:
         # Check action result
         status = get_result_future.result().status
         if status == GoalStatus.STATUS_SUCCEEDED:
-            self._parent.get_logger().info("Result: {0}".format(get_result_future.result().result.follow_path_success))
+            self._logger.info("Result: {0}".format(get_result_future.result().result.follow_path_success))
         else:
-            self._parent.get_logger().warn("Goal failed with status code: {0}".format(status))
+            raise self.GoalFailed("Goal failed with status code: {0}".format(status))
 
-        self._action_client.destroy()
+        action_client.destroy()
 
-    def feedback_callback(self,feedback_msg):
-        self._parent.get_logger().info('Received feedback: {0}'.format(feedback_msg.feedback.actual_speed))
+    def feedback_callback(self, feedback_msg):
+        self._logger.info('Received feedback: {0}'.format(feedback_msg.feedback.actual_speed))
+
+
+class SendFollowPath(ActionHandler):
+    def __init__(self, drone, path):
+        self._action_client = ActionClient(drone, FollowPath, f'{drone.get_drone_id()}/FollowPathBehaviour')
+
+        goal_msg = FollowPath.Goal()
+        goal_msg.trajectory_waypoints = path
+
+        try:
+            super().__init__(self._action_client, goal_msg, drone.get_logger())
+        except self.ActionNotAvailable as err:
+            drone.get_logger().error(str(err))
+        except (self.GoalRejected, self.GoalFailed) as err:
+            drone.get_logger().warn(str(err))
+
+
+class SendGoToWaypoint(ActionHandler):
+    def __init__(self, drone, pose, ignore_pose_yaw=True):
+        self._action_client = ActionClient(drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
+
+        goal_msg = GoToWaypoint.Goal()
+        goal_msg.target_pose = pose
+        goal_msg.ignore_pose_yaw = ignore_pose_yaw
+
+        try:
+            super().__init__(self._action_client, goal_msg, drone.get_logger())
+        except self.ActionNotAvailable as err:
+            drone.get_logger().error(str(err))
+        except (self.GoalRejected, self.GoalFailed) as err:
+            drone.get_logger().warn(str(err))
+
 
 
 class DroneInterface(Node):
@@ -161,7 +198,6 @@ class DroneInterface(Node):
         
     @odom_lock_decor
     def get_position(self):
-        # print(self.pose)
         return self.pose.copy()
 
     @odom_lock_decor
@@ -208,7 +244,8 @@ class DroneInterface(Node):
         SendFollowPath(self, msg)
 
     def takeoff(self, height=1.0, speed=0.5):
-        self.__follow_path([[0, 0, height]], speed, TrajectoryWaypoints.KEEP_YAW)
+        pose  = self.get_position()[:2]
+        self.__follow_path([pose + [height]], speed, TrajectoryWaypoints.KEEP_YAW)
 
     def follow_path(self, path, speed=1.0):
         self.__follow_path(path, speed, TrajectoryWaypoints.PATH_FACING)
@@ -226,8 +263,6 @@ class DroneInterface(Node):
         sleep(1)
         while len(wp_path) != len(self.locals):
             sleep(0.5)
-            # self.get_logger().error("Invalid path.")
-            print(self.locals)
             # return
 
         self.__follow_path(self.locals, speed, TrajectoryWaypoints.PATH_FACING)
@@ -235,7 +270,19 @@ class DroneInterface(Node):
         self.globals = []
 
     def land(self):
-        self.__follow_path([[0, 0, -0.5]], 0.3, TrajectoryWaypoints.KEEP_YAW)
+        pose  = self.get_position()[:2]
+        self.__follow_path([pose + [-0.5]], 0.3, TrajectoryWaypoints.KEEP_YAW)
+
+    # TODO: not working
+    def __go_to(self, x, y, z, yaw=None):
+        msg = Pose()
+        msg.position.x = (float)(x)
+        msg.position.y = (float)(y)
+        msg.position.z = (float)(z)
+        SendGoToWaypoint(self, msg, True)
+
+    def go_to(self, x, y, z):
+        self.__go_to(x, y, z)
 
     def auto_spin(self):
         while rclpy.ok():
