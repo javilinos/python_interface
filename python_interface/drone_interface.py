@@ -18,6 +18,7 @@ from as2_msgs.action import FollowPath, GoToWaypoint
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import PoseStamped, Pose
 from action_msgs.msg import GoalStatus
+from as2_msgs.srv import SetOrigin
 
 import math
 
@@ -158,6 +159,10 @@ class DroneInterface(Node):
         self.fix_pub_ = self.create_publisher(NavSatFix, f"{translator_namespace}/global_pose/fix", 10)
         self.global_sub_ = self.create_subscription(PoseStamped, f"{translator_namespace}/global_pose/ecef", self.global_callback, 10)
         self.local_sub_ = self.create_subscription(PoseStamped, f"{translator_namespace}/local_pose", self.local_callback, 10)
+
+        self.set_origin_cli_ = self.create_client(SetOrigin, f"{translator_namespace}/set_origin")
+        if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
+            self.get_logger().error("Set Origin not ready")
         
         spin_thread = threading.Thread(target=self.auto_spin,daemon=True)
         spin_thread.start()
@@ -229,6 +234,17 @@ class DroneInterface(Node):
     def local_callback(self, msg):
         self.locals.append([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
 
+    def __set_home(self):
+        gps_pose = self.get_gps_pose()
+
+        req = SetOrigin.Request()
+        req.origin.latitude = gps_pose[0]
+        req.origin.longitude = gps_pose[1]
+        req.origin.altitude = gps_pose[2]
+        resp = self.set_origin_cli_.call(req)
+        if not resp.success:
+            self.get_logger().warn("Origin already set")
+
     def __follow_path(self, point_list, speed, yaw_mode = TrajectoryWaypoints.KEEP_YAW):
         msg = TrajectoryWaypoints()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -249,6 +265,8 @@ class DroneInterface(Node):
         SendFollowPath(self, msg)
 
     def takeoff(self, height=1.0, speed=0.5):
+        self.__set_home()
+
         pose  = self.get_position()[:2]
         self.__follow_path([pose + [height]], speed, TrajectoryWaypoints.KEEP_YAW)
 
@@ -270,6 +288,7 @@ class DroneInterface(Node):
             sleep(0.5)
             # return
 
+        print(self.locals)
         self.__follow_path(self.locals, speed, TrajectoryWaypoints.PATH_FACING)
         self.locals = []
         self.globals = []
