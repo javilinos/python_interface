@@ -126,6 +126,8 @@ class SendFollowPath(ActionHandler):
 
             point_list = path_to_list(resp.path)
             is_gps = False
+        elif isinstance(path_data.path, TrajectoryWaypoints):
+            return path_data.path
         else:
             raise Exception  # TODO
         
