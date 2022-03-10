@@ -30,13 +30,14 @@ from geometry_msgs.msg import PoseStamped
 
 POSITION_THRESHOLD = 0.15
 
+
 class MinimalPublisher():
 
     def __init__(self, drone_interface: DroneInterface):
-        
+
         self.drone_interface = drone_interface
         topic_name = 'motion_reference/waypoints'
-        
+
         if drone_interface.get_drone_id() == '/':
             topic_name = self.drone_interface.get_drone_id() + '/' + topic_name
         else:
@@ -44,44 +45,47 @@ class MinimalPublisher():
 
         print("Topic name : ", topic_name)
 
-        self.publisher_ = self.drone_interface.create_publisher(TrajectoryWaypoints, topic_name, 10)
+        self.publisher_ = self.drone_interface.create_publisher(
+            TrajectoryWaypoints, topic_name, 10)
         # print('waiting')
         sleep(0.6)
 
-    def land(self,speed = 0.2,land_height = -1.0):
+    def land(self, speed=0.2, land_height=-1.0):
         land_points = self.drone_interface.get_position()
         land_points[2] = land_height
         print("Landing at : ", land_points)
-        self.send_points([land_points],speed,TrajectoryWaypoints.KEEP_YAW)
+        self.send_points([land_points], speed, TrajectoryWaypoints.KEEP_YAW)
         landed = False
         while landed == False:
-            drone_height=self.drone_interface.get_position()[2] 
+            drone_height = self.drone_interface.get_position()[2]
             print("Drone height : ", drone_height)
-            if drone_height < land_height :  
+            if drone_height < land_height:
 
                 landed = True
             sleep(0.1)
         print("Landed")
-    
-    def take_off(self,speed = 0.5,height=1.0):
+
+    def take_off(self, speed=0.5, height=1.0):
         take_off_points = self.drone_interface.get_position()
         print("Taking off at : ", take_off_points)
         take_off_points[2] = height
-        self.send_points([take_off_points],speed,TrajectoryWaypoints.KEEP_YAW)
+        take_off_points[0] += 0.01
+        take_off_points[1] += 0.01
+        self.send_points([take_off_points], speed,
+                         TrajectoryWaypoints.KEEP_YAW)
         took_off = False
         while took_off == False:
             position = self.drone_interface.get_position()
             print("Position : ", position)
-            drone_height=position[2]
+            drone_height = position[2]
 
             print("Drone height : ", drone_height)
             if drone_height > height-POSITION_THRESHOLD  \
-                and drone_height  < height + POSITION_THRESHOLD :
+                    and drone_height < height + POSITION_THRESHOLD:
                 took_off = True
             sleep(0.1)
 
-
-    def send_points(self,point_list,speed,yaw_mode = TrajectoryWaypoints.KEEP_YAW):
+    def send_points(self, point_list, speed, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
         msg = TrajectoryWaypoints()
         msg.header.stamp = self.drone_interface.get_clock().now().to_msg()
         msg.header.frame_id = "odom"
@@ -90,16 +94,17 @@ class MinimalPublisher():
         poses = []
         for point in point_list:
             pose = PoseStamped()
-            x,y,z = point
+            x, y, z = point
             pose.pose.position.x = (float)(x)
             pose.pose.position.y = (float)(y)
             pose.pose.position.z = (float)(z)
-            pose.pose.orientation.w=1.0
+            pose.pose.orientation.w = 1.0
             poses.append(pose)
         msg.poses = poses
         msg.max_speed = (float)(speed)
         print("Sending message : ", point_list)
         self.publisher_.publish(msg)
+        sleep(1.0)
 
 
 def main(args=None):
@@ -108,18 +113,60 @@ def main(args=None):
     drone_interface = DroneInterface("drone_sim_11")
     minimal_publisher = MinimalPublisher(drone_interface)
 
-    
-    minimal_publisher.take_off()
-    # minimal_publisher.land()
-    
-    point_lists = [[0,0,2]]
-    speed = 5.0
-    minimal_publisher.send_points(point_lists,speed,TrajectoryWaypoints.PATH_FACING)
- 
-    
+    takeoff = 0
+    land = 0
+    lap = 1
+
+    if takeoff:
+        minimal_publisher.take_off(speed=0.5, height=5.0)
+
+    elif land:
+
+        minimal_publisher.land()
+
+    else:
+        if lap == 1:
+            speed = 3.0
+            point_lists = [[7, 3, 1.5],
+                           [7, -2, 2],
+                           [0, 0, 2],
+                           [-7, 3, 1.5],
+                           [-7, -2, 2],
+                           [0, 0, 2.0]]
+
+            # minimal_publisher.send_points(point_lists,speed,TrajectoryWaypoints.PATH_FACING)
+            minimal_publisher.send_points(
+                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+
+        if lap == 2:
+
+            speed = 5.0
+            point_lists = [[7, 3, 1.5],
+                           [7, -2, 2],
+                           [0, 0, 2],
+                           [-7, 3, 1.5],
+                           [-7, -2, 2],
+                           [0, 0, 1.5]]
+
+            minimal_publisher.send_points(
+                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+
+        if lap == 3:
+            speed = 7.0
+            point_lists = [[7, 3, 1.5],
+                           [7, -2, 2],
+                           [0, 0, 2],
+                           [-7, 3, 1.5],
+                           [-7, -2, 2],
+                           [0, 0, 1.5]]
+
+            minimal_publisher.send_points(
+                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+
     minimal_publisher.drone_interface.destroy_node()
     rclpy.shutdown()
 
 
 if __name__ == '__main__':
+
     main()
