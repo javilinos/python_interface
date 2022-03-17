@@ -1,10 +1,6 @@
 import logging
 from typing import Any
-from matplotlib.pyplot import rc
 import rclpy, threading
-from rclpy import publisher, spin_once
-from rclpy import time
-from rclpy import clock
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
@@ -14,7 +10,6 @@ from dataclasses import dataclass
 
 from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import NavSatFix
-from rclpy.timer import Rate
 from as2_msgs.action import FollowPath, GoToWaypoint
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import PoseStamped, Pose
@@ -71,7 +66,7 @@ class ActionHandler:
         # Check action result
         status = get_result_future.result().status
         if status == GoalStatus.STATUS_SUCCEEDED:
-            self._logger.info("Result: {0}".format(get_result_future.result().result.follow_path_success))
+            self._logger.info("Result: {0}".format(get_result_future.result().result))
         else:
             raise self.GoalFailed("Goal failed with status code: {0}".format(status))
 
@@ -167,11 +162,12 @@ class SendFollowPath(ActionHandler):
 
 
 class SendGoToWaypoint(ActionHandler):
-    def __init__(self, drone, pose, ignore_pose_yaw=True):
+    def __init__(self, drone, pose, speed, ignore_pose_yaw):
         self._action_client = ActionClient(drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
 
         goal_msg = GoToWaypoint.Goal()
         goal_msg.target_pose = pose
+        goal_msg.max_speed = speed
         goal_msg.ignore_pose_yaw = ignore_pose_yaw
 
         try:
@@ -316,16 +312,15 @@ class DroneInterface(Node):
         pose  = self.get_position()[:2]
         self.__follow_path([pose + [-0.5]], 0.3, TrajectoryWaypoints.KEEP_YAW)
 
-    # TODO: not working
-    def __go_to(self, x, y, z, yaw=None):
+    def __go_to(self, x, y, z, speed, ignore_yaw):
         msg = Pose()
         msg.position.x = (float)(x)
         msg.position.y = (float)(y)
         msg.position.z = (float)(z)
-        SendGoToWaypoint(self, msg, True)
+        SendGoToWaypoint(self, msg, speed, ignore_yaw)
 
-    def go_to(self, x, y, z):
-        self.__go_to(x, y, z)
+    def go_to(self, x, y, z, speed=2.0, ignore_yaw=True):
+        self.__go_to(x, y, z, speed, ignore_yaw)
 
     def auto_spin(self):
         while rclpy.ok():
@@ -336,7 +331,7 @@ class DroneInterface(Node):
 if __name__ == '__main__':
     rclpy.init()
     drone_interface = DroneInterface("drone_sim_8")
-    
+
     drone_interface.takeoff()
     print("Takeoff completed\n")
     sleep(1)
