@@ -215,9 +215,6 @@ class DroneInterface(Node):
         self.odom_sub = self.create_subscription(Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, qos_profile_sensor_data)
         self.gps_sub = self.create_subscription(NavSatFix, f'{self.get_drone_id()}/platform/gps', self.gps_callback, qos_profile_sensor_data)
 
-        # TESTING
-        self.test_pub = self.create_publisher(JointTrajectoryPoint, f"{self.get_drone_id()}/motion_reference/trajectory", qos_profile_sensor_data)
-
         # translator_namespace = ""
         # self.global_to_local_cli_ = self.create_client(GeopathToPath, f"{translator_namespace}/geopath_to_path")
         # self.local_to_global_cli_ = self.create_client(PathToGeopath, f"{translator_namespace}/path_to_geopath")
@@ -226,14 +223,16 @@ class DroneInterface(Node):
         # if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
         #     self.get_logger().error("Set Origin not ready")
         
-        spin_thread = threading.Thread(target=self.auto_spin, daemon=True)
-        spin_thread.start()
-
-        rclpy.sh
+        self.keep_running = True
+        self.spin_thread = threading.Thread(target=self.auto_spin, daemon=True)
+        self.spin_thread.start()
 
         sleep(0.5)
         print(f'{self.get_drone_id()} interface initialized')
     
+    def __del__(self):
+        self.shutdown()
+
     def get_drone_id(self):
         return self.namespace
 
@@ -347,85 +346,43 @@ class DroneInterface(Node):
         self.__go_to(x, y, z, speed, ignore_yaw)
 
     def auto_spin(self):
-        while rclpy.ok():
+        while rclpy.ok() and self.keep_running:
             rclpy.spin_once(self)
             sleep(0.1)
+    
+    def shutdown(self):
+        self.destroy_subscription(self.info_sub)
+        self.destroy_subscription(self.odom_sub)
+        self.destroy_subscription(self.gps_sub)
+        self.destroy_publisher(self.test_pub)
 
+        self.keep_running = False
+        self.spin_thread.join()
+        rclpy.shutdown()
+        print("Clean exit")
 
-    def test_send_traj(self, vx=0.0, vy=0.0, vz=0.0, sec=1):
-        i = 0
-        while i < int(sec)*10:
-            msg = JointTrajectoryPoint()
-            msg.positions = [0.0, 0.0, 0.0, 0.0]
-            msg.velocities = [vx, vy, vz, 0.0]
-            msg.accelerations = [0.0, 0.0, 0.0, 0.0]
-            self.test_pub.publish(msg)
-            sleep(0.1)
-            i += 1
 
 if __name__ == '__main__':
     rclpy.init()
     drone_interface = DroneInterface("drone_sim_8")
 
-    drone_interface.test_send_traj(vz=1.0, sec=2)
-    sleep(3)
-    drone_interface.test_send_traj(vz=0.01, sec=2)
-    sleep(300)
-    exit()
-
-    drone_interface.test_send_traj(vx=1.0, vz=0.1, sec=2)
-    sleep(30)
-    drone_interface.test_send_traj(vx=-1.0, vz=0.1, sec=2)
-    sleep(30)
-
-    drone_interface.test_send_traj(vx=1.0, vz=0.1, sec=2)
-    sleep(30)
-    drone_interface.test_send_traj(vx=-1.0, vz=0.1, sec=2)
-    sleep(30)
-        
-    drone_interface.test_send_traj(vx=1.0, vz=0.1, sec=2)
-    sleep(30)
-    drone_interface.test_send_traj(vx=-1.0, vz=0.1, sec=2)
-    sleep(30)
-    
-    drone_interface.test_send_traj(vx=1.0, vz=0.1, sec=2)
-    sleep(30)
-    drone_interface.test_send_traj(vx=-1.0, vz=0.1, sec=2)
-    sleep(30)
-    
-    drone_interface.test_send_traj(vx=1.0, vz=0.1, sec=2)
-    sleep(30)
-    drone_interface.test_send_traj(vx=-1.0, vz=0.1, sec=2)
-    sleep(30)
-    
-
-    rclpy.shutdown()
-    exit()
-
+    drone_interface.takeoff(1, 2)
+    print("Takeoff completed\n")
+    sleep(1)
 
     drone_interface.go_to(0, 0, 3)
     drone_interface.go_to(5, 0, 3)
     drone_interface.go_to(5, 5, 0)
     drone_interface.go_to(0, 5, 3)
     drone_interface.go_to(0, 0, 3)
-    exit()
 
-    drone_interface.takeoff(1, 2)
-    print("Takeoff completed\n")
-    sleep(1)
-
-    drone_interface.follow_gps_path([[28.14376, -16.5022, 1],
-                                 [28.1437, -16.5022, 1],
-                                 [28.1437, -16.50235, 1],
-                                 [28.14376, -16.50235, 1]])
-    print("Path finished")
+    # drone_interface.follow_gps_path([[28.14376, -16.5022, 1],
+    #                              [28.1437, -16.5022, 1],
+    #                              [28.1437, -16.50235, 1],
+    #                              [28.14376, -16.50235, 1]])
+    # print("Path finished")
 
     drone_interface.land()
+    drone_interface.shutdown()
+
     print("Bye!")
-
-    # while rclpy.ok():
-    #     sleep(0.1)
-
-
-    ####################
-    # rclpy.spin(node)
