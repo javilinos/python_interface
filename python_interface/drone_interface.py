@@ -215,13 +215,13 @@ class DroneInterface(Node):
         self.odom_sub = self.create_subscription(Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, qos_profile_sensor_data)
         self.gps_sub = self.create_subscription(NavSatFix, f'{self.get_drone_id()}/platform/gps', self.gps_callback, qos_profile_sensor_data)
 
-        # translator_namespace = ""
-        # self.global_to_local_cli_ = self.create_client(GeopathToPath, f"{translator_namespace}/geopath_to_path")
-        # self.local_to_global_cli_ = self.create_client(PathToGeopath, f"{translator_namespace}/path_to_geopath")
+        translator_namespace = ""
+        self.global_to_local_cli_ = self.create_client(GeopathToPath, f"{translator_namespace}/geopath_to_path")
+        self.local_to_global_cli_ = self.create_client(PathToGeopath, f"{translator_namespace}/path_to_geopath")
 
-        # self.set_origin_cli_ = self.create_client(SetOrigin, f"{translator_namespace}/set_origin")
-        # if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
-        #     self.get_logger().error("Set Origin not ready")
+        self.set_origin_cli_ = self.create_client(SetOrigin, f"{translator_namespace}/set_origin")
+        if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
+            self.get_logger().error("Set Origin not ready")
         
         self.keep_running = True
         self.spin_thread = threading.Thread(target=self.auto_spin, daemon=True)
@@ -317,9 +317,6 @@ class DroneInterface(Node):
 
         Takeoff(self, float(height), float(speed))
 
-        # pose  = self.get_position()[:2]
-        # self.__follow_path([pose + [height]], speed, TrajectoryWaypoints.KEEP_YAW)
-
     def follow_path(self, path, speed=1.0):
         self.__follow_path(path, speed, TrajectoryWaypoints.PATH_FACING)
 
@@ -354,7 +351,6 @@ class DroneInterface(Node):
         self.destroy_subscription(self.info_sub)
         self.destroy_subscription(self.odom_sub)
         self.destroy_subscription(self.gps_sub)
-        self.destroy_publisher(self.test_pub)
 
         self.keep_running = False
         self.spin_thread.join()
