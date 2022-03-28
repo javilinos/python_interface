@@ -4,8 +4,8 @@ from shared_data.orientation_data import OrientationData
 
 class OdomData:
     def __init__(self):
-        self.pose = PoseData()
-        self.orientation = OrientationData()
+        self.__pose = PoseData()
+        self.__orientation = OrientationData()
 
     @property
     def pose(self):
@@ -22,10 +22,3 @@ class OdomData:
     @orientation.setter
     def orientation(self, o):
         self.__orientation.orientation = o
-
-    # @property
-    # def odom(self):
-    #     return self.__odom.pose, self.__odom.orientation
-
-    # @odom.setter
-    # def odom(self, o):
