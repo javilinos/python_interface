@@ -6,7 +6,7 @@ from time import sleep
 
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
-from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, ControllerControlMode
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControllerControlMode
 
@@ -113,7 +113,7 @@ class DroneInterface(Node):
         SendFollowPath(self, path_data)
 
     def takeoff(self, height=1.0, speed=0.5):
-        self.__set_home()
+        # self.__set_home()
 
         # self.__follow_path([self.get_position()[:2] + [height]], speed, TrajectoryWaypoints.PATH_FACING)
 
@@ -166,86 +166,34 @@ class DroneInterface(Node):
         rclpy.shutdown()
         print("Clean exit")
         
-    def setTrajControlMode(self):
-        req = SetControllerControlMode.Request()
-        req.control_mode.control_mode = ControllerControlMode.TRAJECTORY
-        resp = self.control_mode_cli_.call(req)
-        if not resp.success:
-            self.get_logger().warn("Set Traj Control Mode not ready")
-            
-    def setSeepControlMode(self):
-        req = SetControllerControlMode.Request()
-        req.control_mode.control_mode = ControllerControlMode.SPEED
-        resp = self.control_mode_cli_.call(req)
-        if not resp.success:
-            self.get_logger().warn("Set Speed Control Mode not ready")
 
 if __name__ == '__main__':
-    
-    import time
-    
     rclpy.init()
-    drone_interface = DroneInterface("M300_0", verbose=False)
 
-    drone_interface.setSeepControlMode()
+    drone_interface = DroneInterface("drone_sim_0", verbose=False)
+
     drone_interface.takeoff(3, 2)
     print("Takeoff completed\n")
     sleep(1)
 
-    print("Send go to: (2, 0, 3)\n")
-    drone_interface.go_to(2, 0, 3)
-    print("Send go to: (2, 2, 3)\n")
-    drone_interface.go_to(2, 2, 3)
-    print("Go to completed\n")
+    drone_interface.go_to(0, 0, 3)
+    drone_interface.go_to(5, 0, 3)
+    # drone_interface.go_to(5, 5, 0)
+    # drone_interface.go_to(0, 5, 3)
+    # drone_interface.go_to(0, 0, 3)
 
-    print("Change control mode\n")
-    drone_interface.setTrajControlMode()
-    
-    print("Sleep for 40 seconds\n")
-    time.sleep(40)
+    # drone_interface.follow_path([[5, 0, 3],
+    #                                 [5, 5, 3],
+    #                                 [0, 5, 3],
+    #                                 [0, 0, 3]], 5)
 
-    print("Send follow path\n")
-    drone_interface.follow_path([[4, 2, 3],
-                                 [4, 4, 3],
-                                 [0, 0, 3]], 
-                                 2)
-    print("Follow path completed\n")
-    
-    print("Change control mode\n")
-    drone_interface.setSeepControlMode()
-    
-    print("Sleep for 10 seconds\n")
-    time.sleep(10)
-    
-    print("Send go to: (2, 0, 3)\n")
-    drone_interface.go_to(2, 0, 3)
-    print("Send go to: (2, 2, 3)\n")
-    drone_interface.go_to(2, 2, 3)
-    print("Go to completed\n")
-    
-    print("Change control mode\n")
-    drone_interface.setTrajControlMode()
-
-    print("Send follow path\n")
-    drone_interface.follow_path([[4, 2, 3],
-                                 [4, 4, 3],
-                                 [0, 0, 3]], 
-                                 2)
-    print("Follow path completed\n")
-    
-    print("Change control mode\n")
-    drone_interface.setSeepControlMode()
-    
-    print("Send land\n")
-    drone_interface.land()
-    
     # drone_interface.follow_gps_path([[28.14376, -16.5022, 3],
     #                                 [28.1437, -16.5022, 3],
     #                                 [28.1437, -16.50235, 3],
     #                                 [28.14376, -16.50235, 3]], 5)
     # print("Path finished")
 
-    # drone_interface.land(-2.0)
-    # drone_interface.shutdown()
+    drone_interface.land(-2.0)
+    drone_interface.shutdown()
 
     print("Bye!")
