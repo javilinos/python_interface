@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose
-from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControllerControlMode
+from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 
 from shared_data.platform_info_data import PlatformInfoData
 from shared_data.odom_data import OdomData
@@ -48,8 +48,6 @@ class DroneInterface(Node):
         self.global_to_local_cli_ = self.create_client(GeopathToPath, f"{translator_namespace}/geopath_to_path")
         self.local_to_global_cli_ = self.create_client(PathToGeopath, f"{translator_namespace}/path_to_geopath")
         
-        self.control_mode_cli_ = self.create_client(SetControllerControlMode, f"{self.get_drone_id()}/set_controller_control_mode")
-
         self.set_origin_cli_ = self.create_client(SetOrigin, f"{translator_namespace}/set_origin")
         if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
             self.get_logger().error("Set Origin not ready")
@@ -159,8 +157,6 @@ class DroneInterface(Node):
         self.destroy_client(self.global_to_local_cli_)
         self.destroy_client(self.local_to_global_cli_)
         
-        self.destroy_client(self.control_mode_cli_)
-
         self.keep_running = False
         self.spin_thread.join()
         rclpy.shutdown()
@@ -170,14 +166,14 @@ class DroneInterface(Node):
 if __name__ == '__main__':
     rclpy.init()
 
-    drone_interface = DroneInterface("drone_sim_0", verbose=False)
+    drone_interface = DroneInterface("drone_sim_0", verbose=True)
 
     drone_interface.takeoff(3, 2)
     print("Takeoff completed\n")
     sleep(1)
 
-    drone_interface.go_to(0, 0, 3)
-    drone_interface.go_to(5, 0, 3)
+    drone_interface.go_to(0, 5, 3)
+    drone_interface.go_to(5, 0, 2)
     # drone_interface.go_to(5, 5, 0)
     # drone_interface.go_to(0, 5, 3)
     # drone_interface.go_to(0, 0, 3)
@@ -191,9 +187,9 @@ if __name__ == '__main__':
     #                                 [28.1437, -16.5022, 3],
     #                                 [28.1437, -16.50235, 3],
     #                                 [28.14376, -16.50235, 3]], 5)
-    # print("Path finished")
+    print("Path finished")
 
-    drone_interface.land(-2.0)
+    drone_interface.land(0.2)
     drone_interface.shutdown()
 
     print("Bye!")
