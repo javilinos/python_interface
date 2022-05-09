@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np  # Scientific computing library for Python
 from python_interface import drone_interface
 import rclpy
 from rclpy import publisher
@@ -29,6 +30,30 @@ from geometry_msgs.msg import PoseStamped
 
 
 POSITION_THRESHOLD = 0.15
+
+
+def get_quaternion_from_euler(roll, pitch, yaw):
+    """
+    Convert an Euler angle to a quaternion.
+
+    Input
+      :param roll: The roll (rotation around x-axis) angle in radians.
+      :param pitch: The pitch (rotation around y-axis) angle in radians.
+      :param yaw: The yaw (rotation around z-axis) angle in radians.
+
+    Output
+      :return qx, qy, qz, qw: The orientation in quaternion [x,y,z,w] format
+    """
+    qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - \
+        np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+    qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + \
+        np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+    qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - \
+        np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+    qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + \
+        np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+    return [qx, qy, qz, qw]
 
 
 class MinimalPublisher():
@@ -85,7 +110,7 @@ class MinimalPublisher():
                 took_off = True
             sleep(0.1)
 
-    def send_points(self, point_list, speed, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
+    def send_points(self, point_list, speed, yaw_mode=TrajectoryWaypoints.KEEP_YAW, _yaw=0):
         msg = TrajectoryWaypoints()
         msg.header.stamp = self.drone_interface.get_clock().now().to_msg()
         msg.header.frame_id = "odom"
@@ -95,10 +120,16 @@ class MinimalPublisher():
         for point in point_list:
             pose = PoseStamped()
             x, y, z = point
+            yaw_def = _yaw
+            orientation_quaternion = get_quaternion_from_euler(0, 0, yaw_def)
             pose.pose.position.x = (float)(x)
             pose.pose.position.y = (float)(y)
             pose.pose.position.z = (float)(z)
             pose.pose.orientation.w = 1.0
+            # pose.pose.orientation.x = orientation_quaternion[0]
+            # pose.pose.orientation.y = orientation_quaternion[1]
+            # pose.pose.orientation.z = orientation_quaternion[2]
+            # pose.pose.orientation.w = orientation_quaternion[3]
             poses.append(pose)
         msg.poses = poses
         msg.max_speed = (float)(speed)
@@ -110,58 +141,80 @@ class MinimalPublisher():
 def main(args=None):
     rclpy.init(args=args)
 
-    drone_interface = DroneInterface("drone_sim_11")
+    # drone_interface = DroneInterface("drone0")
+    drone_interface = DroneInterface("drone_sim_dps_0")
     minimal_publisher = MinimalPublisher(drone_interface)
 
-    takeoff = 0
+    takeoff = 1
     land = 0
-    lap = 1
+    # land = not takeoff
+    rth = 0
+    lap = 0
 
     if takeoff:
-        minimal_publisher.take_off(speed=0.5, height=5.0)
+        minimal_publisher.take_off(speed=0.3, height=1.5)
 
     elif land:
 
         minimal_publisher.land()
 
+    # elif rth:
+
+    #     speed = 10
+
+    #     point_lists = [[0, 0, 1]]
+    #     minimal_publisher.send_points(
+    #         point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+
+    # else:
+    #     if lap == 1:
+    #         speed = 5.0
+    #         point_lists = [[1, 1, 1.5],
+    #                        [-1, 1, 1.5],
+    #                        [-1, -1, 1.5],
+    #                        [1, -1, 1.5],
+    #                        [0, 0, 1.5]]
+    #         # point_lists = [[20, -20, 5]]
+
+    #         # minimal_publisher.send_points(point_lists,speed,TrajectoryWaypoints.PATH_FACING)
+    #         minimal_publisher.send_points(
+    #             point_lists, speed, TrajectoryWaypoints.PATH_FACING)
+
     else:
         if lap == 1:
-            speed = 3.0
-            point_lists = [[7, 3, 1.5],
-                           [7, -2, 2],
-                           [0, 0, 2],
-                           [-7, 3, 1.5],
-                           [-7, -2, 2],
-                           [0, 0, 2.0]]
-
-            # minimal_publisher.send_points(point_lists,speed,TrajectoryWaypoints.PATH_FACING)
-            minimal_publisher.send_points(
-                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
-
-        if lap == 2:
-
-            speed = 5.0
-            point_lists = [[7, 3, 1.5],
-                           [7, -2, 2],
-                           [0, 0, 2],
-                           [-7, 3, 1.5],
-                           [-7, -2, 2],
-                           [0, 0, 1.5]]
+            speed = 0.5
+            point_lists = [[0.0, 0, 1.5]]
+            yaw_to_send = 0.4
 
             minimal_publisher.send_points(
-                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+                point_lists, speed, TrajectoryWaypoints.PATH_FACING)
+            # minimal_publisher.send_points(
+            #     point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
 
-        if lap == 3:
-            speed = 7.0
-            point_lists = [[7, 3, 1.5],
-                           [7, -2, 2],
-                           [0, 0, 2],
-                           [-7, 3, 1.5],
-                           [-7, -2, 2],
-                           [0, 0, 1.5]]
+        # if lap == 2:
 
-            minimal_publisher.send_points(
-                point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+        #     speed = 5.0
+        #     point_lists = [[7, 3, 1.5],
+        #                    [7, -2, 2],
+        #                    [0, 0, 2],
+        #                    [-7, 3, 1.5],
+        #                    [-7, -2, 2],
+        #                    [0, 0, 1.5]]
+
+        #     minimal_publisher.send_points(
+        #         point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
+
+        # if lap == 3:
+        #     speed = 7.0
+        #     point_lists = [[7, 3, 1.5],
+        #                    [7, -2, 2],
+        #                    [0, 0, 2],
+        #                    [-7, 3, 1.5],
+        #                    [-7, -2, 2],
+        #                    [0, 0, 1.5]]
+
+        #     minimal_publisher.send_points(
+        #         point_lists, speed, TrajectoryWaypoints.KEEP_YAW)
 
     minimal_publisher.drone_interface.destroy_node()
     rclpy.shutdown()
