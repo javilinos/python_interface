@@ -1,10 +1,12 @@
-from behaviour_actions.action_handler import ActionHandler
+from ..behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import GoToWaypoint
 
+
 class SendGoToWaypoint(ActionHandler):
     def __init__(self, drone, pose, speed, ignore_pose_yaw):
-        self._action_client = ActionClient(drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
+        self._action_client = ActionClient(
+            drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
 
         goal_msg = GoToWaypoint.Goal()
         goal_msg.target_pose = pose

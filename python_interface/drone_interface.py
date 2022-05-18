@@ -52,19 +52,19 @@ from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 
-from shared_data.platform_info_data import PlatformInfoData
-from shared_data.odom_data import OdomData
-from shared_data.gps_data import GpsData
+from .shared_data.platform_info_data import PlatformInfoData
+from .shared_data.odom_data import OdomData
+from .shared_data.gps_data import GpsData
 
-from behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
-from behaviour_actions.takeoff_behaviour import SendTakeoff
-from behaviour_actions.followpath_behaviour import SendFollowPath
-from behaviour_actions.land_behaviour import SendLand
+from .behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
+from .behaviour_actions.takeoff_behaviour import SendTakeoff
+from .behaviour_actions.followpath_behaviour import SendFollowPath
+from .behaviour_actions.land_behaviour import SendLand
 
-from service_clients.arming import Arm, Disarm
-from service_clients.offboard import Offboard
+from .service_clients.arming import Arm, Disarm
+from .service_clients.offboard import Offboard
 
-from tools.utils import euler_from_quaternion
+from .tools.utils import euler_from_quaternion
 
 
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]

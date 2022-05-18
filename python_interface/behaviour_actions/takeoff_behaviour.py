@@ -1,11 +1,12 @@
-from behaviour_actions.action_handler import ActionHandler
+from ..behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import TakeOff
 
 
 class SendTakeoff(ActionHandler):
     def __init__(self, drone, height, speed):
-        self._action_client = ActionClient(drone, TakeOff, f'{drone.get_drone_id()}/TakeOffBehaviour')
+        self._action_client = ActionClient(
+            drone, TakeOff, f'{drone.get_drone_id()}/TakeOffBehaviour')
 
         goal_msg = TakeOff.Goal()
         goal_msg.takeoff_height = height
