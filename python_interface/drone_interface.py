@@ -207,7 +207,7 @@ if __name__ == '__main__':
 
     rclpy.init()
 
-    N_uavs = 10
+    N_uavs = 2
     functions = []
     uavs = []
     import os
