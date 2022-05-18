@@ -37,14 +37,14 @@ __version__ = "0.1.0"
 A collection of utils to easily command drones with AeroStack2.
 """
 
-import numpy as np
+import threading
+from time import sleep
+
 import rclpy
 import rclpy.signals
-import threading
 import rclpy.executors
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
-from time import sleep
 
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
@@ -232,70 +232,3 @@ class DroneInterface(Node):
         self.spin_thread.join()
         print("Clean exit")
 
-
-def drone_run(drone_interface, offset=[0, 0, 0]):
-    drone_interface.offboard()
-    drone_interface.arm()
-    drone_interface.takeoff(3, 2)
-    sleep(1)
-    drone_interface.go_to(np.array(offset) + np.array([3, 3, 2]))
-    drone_interface.land(0.2)
-
-
-if __name__ == '__main__':
-
-    rclpy.init()
-
-    N_uavs = 2
-    functions = []
-    uavs = []
-    import os
-    drone_id = os.getenv('AEROSTACK2_SIMULATION_DRONE_ID')
-    if drone_id is None:
-        drone_id = "drone0"
-
-    drone_id = drone_id[:-1]
-    for i in range(N_uavs):
-        uavs.append(DroneInterface(f"{drone_id}{i}"))
-        f = threading.Thread(target=drone_run, args=(uavs[i], [i, 0, 0]))
-        functions.append(f)
-
-    for f in functions:
-        f.start()
-
-    for f in functions:
-        f.join()
-
-    for uav in uavs:
-        uav.shutdown()
-
-    rclpy.shutdown()
-
-    exit(0)
-    drone_interface = DroneInterface("drone_sim_0", verbose=True)
-
-    drone_interface.takeoff(3, 2)
-    print("Takeoff completed\n")
-    sleep(1)
-
-    drone_interface.go_to(0, 5, 3)
-    drone_interface.go_to(5, 0, 2)
-    # drone_interface.go_to(5, 5, 0)
-    # drone_interface.go_to(0, 5, 3)
-    # drone_interface.go_to(0, 0, 3)
-
-    # drone_interface.follow_path([[5, 0, 3],
-    #                                 [5, 5, 3],
-    #                                 [0, 5, 3],
-    #                                 [0, 0, 3]], 5)
-
-    # drone_interface.follow_gps_path([[28.14376, -16.5022, 3],
-    #                                 [28.1437, -16.5022, 3],
-    #                                 [28.1437, -16.50235, 3],
-    #                                 [28.14376, -16.50235, 3]], 5)
-    print("Path finished")
-
-    drone_interface.land(0.2)
-    drone_interface.shutdown()
-
-    print("Bye!")
