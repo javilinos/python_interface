@@ -1,5 +1,5 @@
-from shared_data.pose_data import PoseData
-from shared_data.orientation_data import OrientationData
+from ..shared_data.pose_data import PoseData
+from ..shared_data.orientation_data import OrientationData
 
 
 class OdomData:

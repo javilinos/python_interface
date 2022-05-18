@@ -1,4 +1,4 @@
-from behaviour_actions.action_handler import ActionHandler
+from ..behaviour_actions.action_handler import ActionHandler
 
 from rclpy.action import ActionClient
 
@@ -11,7 +11,8 @@ from as2_msgs.action import FollowPath
 
 from dataclasses import dataclass
 from typing import Any
-from tools.utils import path_to_list
+from ..tools.utils import path_to_list
+
 
 class SendFollowPath(ActionHandler):
     @dataclass
@@ -20,9 +21,10 @@ class SendFollowPath(ActionHandler):
         speed: float = 1.0
         yaw_mode: TrajectoryWaypoints.yaw_mode = TrajectoryWaypoints.KEEP_YAW
         is_gps: bool = False
-        
+
     def __init__(self, drone, path_data):
-        self._action_client = ActionClient(drone, FollowPath, f'{drone.get_drone_id()}/FollowPathBehaviour')
+        self._action_client = ActionClient(
+            drone, FollowPath, f'{drone.get_drone_id()}/FollowPathBehaviour')
         self._drone = drone
 
         goal_msg = FollowPath.Goal()
@@ -62,7 +64,7 @@ class SendFollowPath(ActionHandler):
             return path_data.path
         else:
             raise Exception  # TODO
-        
+
         if path_data.is_gps:
             geopath = GeoPath()
             geopath.header.stamp = self._drone.get_clock().now().to_msg()
@@ -75,7 +77,7 @@ class SendFollowPath(ActionHandler):
                 gps.pose.position.longitude = float(wp[1])
                 gps.pose.position.altitude = float(wp[2])
                 geopath.poses.append(gps)
-        
+
             path_data.path = geopath
             path_data.is_gps = False
             return self.get_traj(path_data)
@@ -87,13 +89,12 @@ class SendFollowPath(ActionHandler):
             poses = []
             for point in point_list:
                 pose = PoseStamped()
-                x,y,z = point
+                x, y, z = point
                 pose.pose.position.x = (float)(x)
                 pose.pose.position.y = (float)(y)
                 pose.pose.position.z = (float)(z)
-                pose.pose.orientation.w=1.0
+                pose.pose.orientation.w = 1.0
                 poses.append(pose)
             msg.poses = poses
             msg.max_speed = (float)(path_data.speed)
             return msg
-
