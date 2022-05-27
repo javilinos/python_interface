@@ -161,7 +161,7 @@ class DroneInterface(Node):
         if not resp.success:
             self.get_logger().warn("Origin already set")
 
-    def __follow_path(self, path, speed=1.0, yaw_mode=TrajectoryWaypoints.KEEP_YAW, is_gps=False):
+    def __follow_path(self, path, speed, yaw_mode, is_gps=False):
         path_data = SendFollowPath.FollowPathData(
             path, speed, yaw_mode, is_gps)
         SendFollowPath(self, path_data)
@@ -173,8 +173,8 @@ class DroneInterface(Node):
 
         SendTakeoff(self, float(height), float(speed))
 
-    def follow_path(self, path, speed=1.0):
-        self.__follow_path(path, speed, TrajectoryWaypoints.PATH_FACING)
+    def follow_path(self, path, speed=1.0, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
+        self.__follow_path(path, speed, yaw_mode)
 
     def follow_gps_path(self, wp_path, speed=1.0):
         self.__follow_path(
