@@ -35,11 +35,12 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
+from numpy import isin
 from ..behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import GoToWaypoint
 from geometry_msgs.msg import PoseStamped, Pose
-from geographic_msgs.msg import GeoPoseStamped
+from geographic_msgs.msg import GeoPoseStamped, GeoPose
 from as2_msgs.srv import GeopathToPath
 
 
@@ -47,6 +48,8 @@ class SendGoToWaypoint(ActionHandler):
     def __init__(self, drone, pose, speed, ignore_pose_yaw):
         self._action_client = ActionClient(
             drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
+
+        self._drone = drone
 
         goal_msg = GoToWaypoint.Goal()
         goal_msg.target_pose = self.get_pose(pose)
@@ -66,6 +69,10 @@ class SendGoToWaypoint(ActionHandler):
             return pose
         elif isinstance(pose, PoseStamped):
             return pose.pose
+        elif isinstance(pose, GeoPose):
+            geopose = GeoPoseStamped()
+            geopose.pose = pose
+            return self.get_pose(geopose)
         elif isinstance(pose, GeoPoseStamped):
             req = GeopathToPath.Request()
             req.geo_path.poses = [pose]
