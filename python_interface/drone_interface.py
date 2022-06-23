@@ -50,6 +50,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose
+from geographic_msgs.msg import GeoPose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 
 from .shared_data.platform_info_data import PlatformInfoData
@@ -100,10 +101,10 @@ class DroneInterface(Node):
         self.local_to_global_cli_ = self.create_client(
             PathToGeopath, f"{translator_namespace}/path_to_geopath")
 
-        # self.set_origin_cli_ = self.create_client(
-        #     SetOrigin, f"{translator_namespace}/set_origin")
-        # if not self.set_origin_cli_.wait_for_service(timeout_sec=10):
-        #     self.get_logger().error("Set Origin not ready")
+        self.set_origin_cli_ = self.create_client(
+            SetOrigin, f"{translator_namespace}/set_origin")
+        if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
+            self.get_logger().error("Set Origin not ready")
 
         self.keep_running = True
         self.__executor.add_node(self)
@@ -145,12 +146,16 @@ class DroneInterface(Node):
         return self.odom.orientation
 
     def gps_callback(self, msg):
-        self.gps.fix = [msg.latitude/1e7, msg.longitude/1e7, msg.altitude/1e3]
+        self.gps.fix = [msg.latitude, msg.longitude, msg.altitude]
 
     def get_gps_pose(self):
         return self.gps.fix
 
     def __set_home(self):
+        if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
+            self.get_logger().error("GPS service not available")
+            return
+
         gps_pose = self.get_gps_pose()
 
         req = SetOrigin.Request()
@@ -167,7 +172,7 @@ class DroneInterface(Node):
         SendFollowPath(self, path_data)
 
     def takeoff(self, height=1.0, speed=0.5):
-        # self.__set_home()
+        self.__set_home()
 
         # self.__follow_path([self.get_position()[:2] + [height]], speed, TrajectoryWaypoints.PATH_FACING)
 
@@ -176,9 +181,8 @@ class DroneInterface(Node):
     def follow_path(self, path, speed=1.0, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
         self.__follow_path(path, speed, yaw_mode)
 
-    def follow_gps_path(self, wp_path, speed=1.0):
-        self.__follow_path(
-            wp_path, speed, TrajectoryWaypoints.PATH_FACING, is_gps=True)
+    def follow_gps_path(self, wp_path, speed=1.0, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
+        self.__follow_path(wp_path, speed, yaw_mode, is_gps=True)
 
     def arm(self):
         sleep(0.1)
@@ -201,18 +205,32 @@ class DroneInterface(Node):
         # pose  = self.get_position()[:2]
         # self.__follow_path([pose + [-0.5]], 0.3, TrajectoryWaypoints.KEEP_YAW)
 
-    def __go_to(self, x, y, z, speed, ignore_yaw):
-        msg = Pose()
-        msg.position.x = (float)(x)
-        msg.position.y = (float)(y)
-        msg.position.z = (float)(z)
+    def __go_to(self, x, y, z, speed, ignore_yaw, is_gps):
+        if is_gps:
+            msg = GeoPose()
+            msg.position.latitude = (float)(x)
+            msg.position.longitude = (float)(y) 
+            msg.position.altitude = (float)(z)
+        else:
+            msg = Pose()
+            msg.position.x = (float)(x)
+            msg.position.y = (float)(y)
+            msg.position.z = (float)(z)
         SendGoToWaypoint(self, msg, speed, ignore_yaw)
 
-    def go_to(self, x, y, z, speed=2.0, ignore_yaw=True):
-        self.__go_to(x, y, z, speed, ignore_yaw)
+    def go_to(self, x, y, z, speed, ignore_yaw=True):
+        self.__go_to(x, y, z, speed, ignore_yaw, is_gps=False)
 
-    def go_to(self, point, speed=2.0, ignore_yaw=True):
-        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw)
+    # TODO: python overloads?
+    # def go_to(self, point, speed, ignore_yaw=True):
+    #     self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
+
+    def go_to_gps(self, lat, lon, alt, speed, ignore_yaw=True):
+        self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
+
+    # TODO: python overloads?
+    # def go_to_gps(self, waypoint, speed, ignore_yaw=True):
+    #     self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
 
     def auto_spin(self):
         while rclpy.ok() and self.keep_running:

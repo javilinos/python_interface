@@ -38,6 +38,9 @@ __version__ = "0.1.0"
 from ..behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import GoToWaypoint
+from geometry_msgs.msg import PoseStamped, Pose
+from geographic_msgs.msg import GeoPoseStamped
+from as2_msgs.srv import GeopathToPath
 
 
 class SendGoToWaypoint(ActionHandler):
@@ -46,7 +49,7 @@ class SendGoToWaypoint(ActionHandler):
             drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
 
         goal_msg = GoToWaypoint.Goal()
-        goal_msg.target_pose = pose
+        goal_msg.target_pose = self.get_pose(pose)
         goal_msg.max_speed = speed
         goal_msg.ignore_pose_yaw = ignore_pose_yaw
 
@@ -56,3 +59,21 @@ class SendGoToWaypoint(ActionHandler):
             drone.get_logger().error(str(err))
         except (self.GoalRejected, self.GoalFailed) as err:
             drone.get_logger().warn(str(err))
+
+
+    def get_pose(self, pose):
+        if isinstance(pose, Pose):
+            return pose
+        elif isinstance(pose, PoseStamped):
+            return pose.pose
+        elif isinstance(pose, GeoPoseStamped):
+            req = GeopathToPath.Request()
+            req.geo_path.poses = [pose]
+            resp = self._drone.global_to_local_cli_.call(req)
+            if not resp.success:
+                self._drone.get_logger().warn("Can't follow path since origin is not set")
+                raise Exception  # TODO
+
+            return resp.path.poses[0].pose
+        else:
+            raise Exception  # TODO
