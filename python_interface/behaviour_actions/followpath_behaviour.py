@@ -77,7 +77,7 @@ class SendFollowPath(ActionHandler):
     def get_traj(self, path_data):
         if isinstance(path_data.path, list):
             if not path_data.path:  # not empty
-                raise Exception  # TODO
+                raise self.GoalRejected("Goal format invalid")
             if isinstance(path_data.path[0], list):
                 point_list = path_data.path
             else:
@@ -93,14 +93,14 @@ class SendFollowPath(ActionHandler):
             resp = self._drone.global_to_local_cli_.call(req)
             if not resp.success:
                 self._drone.get_logger().warn("Can't follow path since origin is not set")
-                raise Exception  # TODO
+                raise self.GoalFailed("GPS service not available")
 
             point_list = path_to_list(resp.path)
             is_gps = False
         elif isinstance(path_data.path, TrajectoryWaypoints):
             return path_data.path
         else:
-            raise Exception  # TODO
+            raise self.GoalRejected("Goal format invalid")
 
         if path_data.is_gps:
             geopath = GeoPath()
