@@ -222,15 +222,15 @@ class DroneInterface(Node):
         self.__go_to(x, y, z, speed, ignore_yaw, is_gps=False)
 
     # TODO: python overloads?
-    # def go_to(self, point, speed, ignore_yaw=True):
-    #     self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
+    def go_to_point(self, point, speed, ignore_yaw=True):
+        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
 
     def go_to_gps(self, lat, lon, alt, speed, ignore_yaw=True):
         self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
 
     # TODO: python overloads?
-    # def go_to_gps(self, waypoint, speed, ignore_yaw=True):
-    #     self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
+    def go_to_gps_point(self, waypoint, speed, ignore_yaw=True):
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
 
     def auto_spin(self):
         while rclpy.ok() and self.keep_running:
