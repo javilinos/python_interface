@@ -45,11 +45,12 @@ import rclpy.signals
 import rclpy.executors
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
+import message_filters
 
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 
@@ -90,11 +91,28 @@ class DroneInterface(Node):
         self.namespace = drone_id
         self.info_sub = self.create_subscription(
             PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, qos_profile_system_default)
+        
+        # Synchronious callbacks to pose and twist
+        # self.pose_sub = message_filters.Subscriber(self, PoseStamped, f'{self.get_drone_id()}/self_localization/pose', qos_profile_sensor_data.get_c_qos_profile())
+        # self.twist_sub = message_filters.Subscriber(self, TwistStamped, f'{self.get_drone_id()}/self_localization/twist', qos_profile_sensor_data.get_c_qos_profile())
+        
+        # self._synchronizer = message_filters.ApproximateTimeSynchronizer(
+        #     (self.pose_sub, self.twist_sub), 5, 0.01, allow_headerless=True)
+        # self._synchronizer.registerCallback(self.odometry_callback)
+        
+        # Odometry subscriber
+        # self.odom_sub = self.create_subscription(
+        #     Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, qos_profile_sensor_data)
+        
+        # Pose subscriber
         self.odom_sub = self.create_subscription(
-            Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, qos_profile_sensor_data)
+            PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.odometry_callback, qos_profile_sensor_data)
+        
+        print(f"DroneInterface: Subscribed to odometry with topic {self.get_drone_id()}/self_localization/pose")
+        
         self.gps_sub = self.create_subscription(
             NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
-
+        
         translator_namespace = ""
         self.global_to_local_cli_ = self.create_client(
             GeopathToPath, f"{translator_namespace}/geopath_to_path")
@@ -133,11 +151,18 @@ class DroneInterface(Node):
         return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]), "state": STATE[info[3]],
                 "yaw_mode": YAW_MODE[info[4]], "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
 
-    def odometry_callback(self, msg):
-        self.odom.pose = [msg.pose.pose.position.x,
-                          msg.pose.pose.position.y, msg.pose.pose.position.z]
-        self.odom.orientation = [*euler_from_quaternion(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y,
-                                                        msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)]
+    def odometry_callback(self, pose_msg):
+        self.odom.pose = [pose_msg.pose.position.x,
+                          pose_msg.pose.position.y,
+                          pose_msg.pose.position.z]
+        
+        self.odom.orientation = [
+            *euler_from_quaternion(
+                pose_msg.pose.orientation.x, 
+                pose_msg.pose.orientation.y,
+                pose_msg.pose.orientation.z, 
+                pose_msg.pose.orientation.w)]
+            
 
     def get_position(self):
         return self.odom.pose
