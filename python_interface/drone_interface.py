@@ -108,8 +108,6 @@ class DroneInterface(Node):
         self.odom_sub = self.create_subscription(
             PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.odometry_callback, qos_profile_sensor_data)
         
-        print(f"DroneInterface: Subscribed to odometry with topic {self.get_drone_id()}/self_localization/pose")
-        
         self.gps_sub = self.create_subscription(
             NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
         
