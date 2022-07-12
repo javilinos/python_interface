@@ -174,13 +174,11 @@ class DroneInterface(Node):
     def get_gps_pose(self):
         return self.gps.fix
 
-    def __set_home(self):
+    def set_home(self, gps_pose):
         if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
             self.get_logger().error("GPS service not available")
             return
-
-        gps_pose = self.get_gps_pose()
-
+        
         req = SetOrigin.Request()
         req.origin.latitude = float(gps_pose[0])
         req.origin.longitude = float(gps_pose[1])
@@ -195,7 +193,8 @@ class DroneInterface(Node):
         SendFollowPath(self, path_data)
 
     def takeoff(self, height=1.0, speed=0.5):
-        self.__set_home()
+        gps_pose = self.get_gps_pose()
+        self.set_home(gps_pose)
 
         # self.__follow_path([self.get_position()[:2] + [height]], speed, TrajectoryWaypoints.PATH_FACING)
 
