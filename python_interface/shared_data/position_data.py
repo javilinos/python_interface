@@ -35,27 +35,27 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..shared_data.pose_data import PoseData
-from ..shared_data.orientation_data import OrientationData
+import threading
+
+lock = threading.Lock()
+
+def lock_decor(func):
+    def wrapper(self,*args, **kwargs):
+        with lock:
+            return func(self,*args, **kwargs)
+    return wrapper
 
 
-class OdomData:
+class PositionData:
     def __init__(self):
-        self.__pose = PoseData()
-        self.__orientation = OrientationData()
+        self.position = [float('nan'), float('nan'), float('nan')]
 
     @property
-    def pose(self):
-        return self.__pose.pose
+    @lock_decor
+    def position(self):
+        return self.__pose
 
-    @pose.setter
-    def pose(self, p):
-        self.__pose.pose = p
-
-    @property
-    def orientation(self):
-        return self.__orientation.orientation
-
-    @orientation.setter
-    def orientation(self, o):
-        self.__orientation.orientation = o
+    @position.setter
+    @lock_decor
+    def position(self, p):
+        self.__position = p

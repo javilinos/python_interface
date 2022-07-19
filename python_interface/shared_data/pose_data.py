@@ -35,27 +35,27 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-import threading
-
-lock = threading.Lock()
-
-def lock_decor(func):
-    def wrapper(self,*args, **kwargs):
-        with lock:
-            return func(self,*args, **kwargs)
-    return wrapper
+from ..shared_data.position_data import PositionData
+from ..shared_data.orientation_data import OrientationData
 
 
 class PoseData:
     def __init__(self):
-        self.pose = [float('nan'), float('nan'), float('nan')]
+        self.__pose = PositionData()
+        self.__orientation = OrientationData()
 
     @property
-    @lock_decor
-    def pose(self):
-        return self.__pose
+    def position(self):
+        return self.__pose.position
 
-    @pose.setter
-    @lock_decor
-    def pose(self, p):
-        self.__pose = p
+    @position.setter
+    def position(self, p):
+        self.__pose.position = p
+
+    @property
+    def orientation(self):
+        return self.__orientation.orientation
+
+    @orientation.setter
+    def orientation(self, o):
+        self.__orientation.orientation = o

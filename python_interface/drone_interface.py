@@ -47,7 +47,6 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 import message_filters
 
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
@@ -55,7 +54,7 @@ from geographic_msgs.msg import GeoPose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 
 from .shared_data.platform_info_data import PlatformInfoData
-from .shared_data.odom_data import OdomData
+from .shared_data.pose_data import PoseData
 from .shared_data.gps_data import GpsData
 
 from .behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
@@ -85,28 +84,24 @@ class DroneInterface(Node):
             self.get_logger().set_level(rclpy.logging.LoggingSeverity.WARN)
 
         self.info = PlatformInfoData()
-        self.odom = OdomData()
+        self.pose = PoseData()
         self.gps = GpsData()
 
         self.namespace = drone_id
         self.info_sub = self.create_subscription(
             PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, qos_profile_system_default)
         
-        # Synchronious callbacks to pose and twist
+        # TODO: Synchronious callbacks to pose and twist
         # self.pose_sub = message_filters.Subscriber(self, PoseStamped, f'{self.get_drone_id()}/self_localization/pose', qos_profile_sensor_data.get_c_qos_profile())
         # self.twist_sub = message_filters.Subscriber(self, TwistStamped, f'{self.get_drone_id()}/self_localization/twist', qos_profile_sensor_data.get_c_qos_profile())
         
         # self._synchronizer = message_filters.ApproximateTimeSynchronizer(
         #     (self.pose_sub, self.twist_sub), 5, 0.01, allow_headerless=True)
-        # self._synchronizer.registerCallback(self.odometry_callback)
-        
-        # Odometry subscriber
-        # self.odom_sub = self.create_subscription(
-        #     Odometry, f'{self.get_drone_id()}/self_localization/odom', self.odometry_callback, qos_profile_sensor_data)
+        # self._synchronizer.registerCallback(self.pose_callback)
         
         # Pose subscriber
-        self.odom_sub = self.create_subscription(
-            PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.odometry_callback, qos_profile_sensor_data)
+        self.pose_sub = self.create_subscription(
+            PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.pose_callback, qos_profile_sensor_data)
         
         self.gps_sub = self.create_subscription(
             NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
@@ -149,12 +144,12 @@ class DroneInterface(Node):
         return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]), "state": STATE[info[3]],
                 "yaw_mode": YAW_MODE[info[4]], "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
 
-    def odometry_callback(self, pose_msg):
-        self.odom.pose = [pose_msg.pose.position.x,
+    def pose_callback(self, pose_msg):
+        self.pose.position = [pose_msg.pose.position.x,
                           pose_msg.pose.position.y,
                           pose_msg.pose.position.z]
         
-        self.odom.orientation = [
+        self.pose.orientation = [
             *euler_from_quaternion(
                 pose_msg.pose.orientation.x, 
                 pose_msg.pose.orientation.y,
@@ -163,10 +158,10 @@ class DroneInterface(Node):
             
 
     def get_position(self):
-        return self.odom.pose
+        return self.pose.position
 
     def get_orientation(self):
-        return self.odom.orientation
+        return self.pose.orientation
 
     def gps_callback(self, msg):
         self.gps.fix = [msg.latitude, msg.longitude, msg.altitude]
@@ -216,16 +211,8 @@ class DroneInterface(Node):
     def offboard(self):
         Offboard(self)
 
-    # TEMPORAL
-    def follow_gps_wp(self, wp_list, speed=1.0):
-        for pnt in wp_list:
-            self.__follow_path(
-                [pnt], speed, TrajectoryWaypoints.PATH_FACING, is_gps=True)
-
     def land(self, speed=0.5):
         SendLand(self, float(speed))
-        # pose  = self.get_position()[:2]
-        # self.__follow_path([pose + [-0.5]], 0.3, TrajectoryWaypoints.KEEP_YAW)
 
     def __go_to(self, x, y, z, speed, ignore_yaw, is_gps):
         if is_gps:
@@ -262,7 +249,7 @@ class DroneInterface(Node):
     def shutdown(self):
         self.keep_running = False
         self.destroy_subscription(self.info_sub)
-        self.destroy_subscription(self.odom_sub)
+        self.destroy_subscription(self.pose_sub)
         self.destroy_subscription(self.gps_sub)
 
         # self.destroy_client(self.set_origin_cli_)
