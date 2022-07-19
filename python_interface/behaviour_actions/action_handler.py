@@ -86,4 +86,4 @@ class ActionHandler:
         action_client.destroy()
 
     def feedback_callback(self, feedback_msg):
-        self._logger.info('Received feedback: {0}'.format(feedback_msg.feedback))
+        self._logger.debug('Received feedback: {0}'.format(feedback_msg.feedback))

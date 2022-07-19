@@ -80,8 +80,8 @@ class DroneInterface(Node):
         super().__init__(f'{drone_id}_interface')
 
         self.__executor = rclpy.executors.SingleThreadedExecutor()
-        if not verbose:
-            self.get_logger().set_level(rclpy.logging.LoggingSeverity.WARN)
+        if verbose:
+            self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         self.info = PlatformInfoData()
         self.pose = PoseData()
@@ -123,7 +123,7 @@ class DroneInterface(Node):
         self.spin_thread.start()
 
         sleep(0.5)
-        print(f'{self.get_drone_id()} interface initialized')
+        self.get_logger().info(f'{self.get_drone_id()} interface initialized')
 
     def __del__(self):
         self.shutdown()
@@ -258,4 +258,3 @@ class DroneInterface(Node):
 
         self.spin_thread.join()
         print("Clean exit")
-
