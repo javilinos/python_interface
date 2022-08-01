@@ -53,7 +53,7 @@ class PositionData:
     @property
     @lock_decor
     def position(self):
-        return self.__pose
+        return self.__position
 
     @position.setter
     @lock_decor
