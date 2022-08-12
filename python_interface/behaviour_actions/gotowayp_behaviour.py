@@ -44,7 +44,7 @@ from as2_msgs.srv import GeopathToPath
 
 
 class SendGoToWaypoint(ActionHandler):
-    def __init__(self, drone, pose, speed, ignore_pose_yaw):
+    def __init__(self, drone, pose, speed, yaw_mode):
         self._action_client = ActionClient(
             drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
 
@@ -53,7 +53,8 @@ class SendGoToWaypoint(ActionHandler):
         goal_msg = GoToWaypoint.Goal()
         goal_msg.target_pose = self.get_pose(pose)
         goal_msg.max_speed = speed
-        goal_msg.ignore_pose_yaw = ignore_pose_yaw
+        goal_msg.ignore_pose_yaw = yaw_mode == GoToWaypoint.Goal.KEEP_YAW # Backwards compatibility
+        goal_msg.yaw_mode_flag = yaw_mode
 
         try:
             super().__init__(self._action_client, goal_msg, drone.get_logger())

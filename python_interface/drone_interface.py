@@ -52,6 +52,7 @@ from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
+from as2_msgs.action import GoToWaypoint
 
 from .shared_data.platform_info_data import PlatformInfoData
 from .shared_data.pose_data import PoseData
@@ -214,7 +215,7 @@ class DroneInterface(Node):
     def land(self, speed=0.5):
         SendLand(self, float(speed))
 
-    def __go_to(self, x, y, z, speed, ignore_yaw, is_gps):
+    def __go_to(self, x, y, z, speed, yaw_mode, yaw, is_gps):
         if is_gps:
             msg = GeoPose()
             msg.position.latitude = (float)(x)
@@ -225,21 +226,22 @@ class DroneInterface(Node):
             msg.position.x = (float)(x)
             msg.position.y = (float)(y)
             msg.position.z = (float)(z)
-        SendGoToWaypoint(self, msg, speed, ignore_yaw)
+            msg.orientation.z = (float)(yaw)
+        SendGoToWaypoint(self, msg, speed, yaw_mode)
 
-    def go_to(self, x, y, z, speed, ignore_yaw=True):
-        self.__go_to(x, y, z, speed, ignore_yaw, is_gps=False)
-
-    # TODO: python overloads?
-    def go_to_point(self, point, speed, ignore_yaw=True):
-        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
-
-    def go_to_gps(self, lat, lon, alt, speed, ignore_yaw=True):
-        self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
+    def go_to(self, x, y, z, speed, yaw_mode=GoToWaypoint.Goal.PATH_FACING, yaw=0.0):
+        self.__go_to(x, y, z, speed, yaw_mode, yaw, is_gps=False)
 
     # TODO: python overloads?
-    def go_to_gps_point(self, waypoint, speed, ignore_yaw=True):
-        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
+    def go_to_point(self, point, speed, yaw_mode=GoToWaypoint.Goal.PATH_FACING, yaw=0.0):
+        self.__go_to(point[0], point[1], point[2], speed, yaw_mode, yaw, is_gps=False)
+
+    def go_to_gps(self, lat, lon, alt, speed, yaw_mode=GoToWaypoint.Goal.PATH_FACING, yaw=0.0):
+        self.__go_to(lat, lon, alt, speed, yaw_mode, yaw, is_gps=True)
+
+    # TODO: python overloads?
+    def go_to_gps_point(self, waypoint, speed, yaw_mode=GoToWaypoint.Goal.PATH_FACING, yaw=0.0):
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, yaw_mode, yaw, is_gps=True)
 
     def auto_spin(self):
         while rclpy.ok() and self.keep_running:
