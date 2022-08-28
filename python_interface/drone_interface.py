@@ -77,6 +77,11 @@ REFERENCE_FRAME = ["LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 
 class DroneInterface(Node):
+    class goto_yaw_modes():
+        PATH_FACING = GoToWaypoint.Goal.PATH_FACING
+        FIXED_YAW = GoToWaypoint.Goal.FIXED_YAW
+        KEEP_YAW = GoToWaypoint.Goal.KEEP_YAW
+    
     def __init__(self, drone_id="drone0", verbose=False):
         super().__init__(f'{drone_id}_interface')
 
