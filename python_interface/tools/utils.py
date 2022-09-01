@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from math import atan2, asin
+from math import atan2, asin, sin, cos
 
 
 def euler_from_quaternion(x, y, z, w):
@@ -59,6 +59,17 @@ def euler_from_quaternion(x, y, z, w):
     yaw_z = atan2(t3, t4)
      
     return roll_x, pitch_y, yaw_z # in radians
+
+def quaternion_from_euler(roll, pitch, yaw):
+    """
+    Convert an Euler angle to a quaternion.
+    """
+    qx = sin(roll/2) * cos(pitch/2) * cos(yaw/2) - cos(roll/2) * sin(pitch/2) * sin(yaw/2)
+    qy = cos(roll/2) * sin(pitch/2) * cos(yaw/2) + sin(roll/2) * cos(pitch/2) * sin(yaw/2)
+    qz = cos(roll/2) * cos(pitch/2) * sin(yaw/2) - sin(roll/2) * sin(pitch/2) * cos(yaw/2)
+    qw = cos(roll/2) * cos(pitch/2) * cos(yaw/2) + sin(roll/2) * sin(pitch/2) * sin(yaw/2)
+
+    return [qx, qy, qz, qw]
 
 
 def path_to_list(path):

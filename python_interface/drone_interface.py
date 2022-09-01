@@ -66,7 +66,7 @@ from .behaviour_actions.land_behaviour import SendLand
 from .service_clients.arming import Arm, Disarm
 from .service_clients.offboard import Offboard
 
-from .tools.utils import euler_from_quaternion
+from .tools.utils import euler_from_quaternion, quaternion_from_euler
 
 
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
@@ -231,7 +231,13 @@ class DroneInterface(Node):
             msg.position.x = (float)(x)
             msg.position.y = (float)(y)
             msg.position.z = (float)(z)
-            msg.orientation.z = (float)(yaw)
+            qx, qy, qz, qw = quaternion_from_euler(0,0,yaw)
+
+            msg.orientation.x = (float)(qx)
+            msg.orientation.y = (float)(qy)
+            msg.orientation.z = (float)(qz)
+            msg.orientation.w = (float)(qw)
+            
         SendGoToWaypoint(self, msg, speed, yaw_mode)
 
     def go_to(self, x, y, z, speed, yaw_mode=GoToWaypoint.Goal.PATH_FACING, yaw=0.0):
