@@ -67,13 +67,10 @@ from .service_clients.offboard import Offboard
 
 from .tools.utils import euler_from_quaternion
 
-
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
-YAW_MODE = ["YAW_ANGLE", "YAW_SPEED"]
-CONTROL_MODE = ["POSITION_MODE", "SPEED_MODE", "SPEED_IN_A_PLANE",
-                "ACCEL_MODE", "ATTITUDE_MODE", "ACRO_MODE", "UNSET"]
-REFERENCE_FRAME = ["LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
-
+YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
+CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE", "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]            
+REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 class DroneInterface(Node):
     def __init__(self, drone_id="drone0", verbose=False, use_gps=False):
@@ -107,7 +104,7 @@ class DroneInterface(Node):
         self.gps_sub = self.create_subscription(
             NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
 
-        translator_namespace = ""
+        translator_namespace = self.namespace
         self.global_to_local_cli_ = self.create_client(
             GeopathToPath, f"{translator_namespace}/geopath_to_path")
         self.local_to_global_cli_ = self.create_client(
