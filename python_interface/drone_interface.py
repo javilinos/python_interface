@@ -48,10 +48,10 @@ from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 import message_filters
 
 from sensor_msgs.msg import NavSatFix
-from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, ControlMode
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
-from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
+from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControlMode
 
 from .shared_data.platform_info_data import PlatformInfoData
 from .shared_data.pose_data import PoseData
@@ -67,16 +67,13 @@ from .service_clients.offboard import Offboard
 
 from .tools.utils import euler_from_quaternion
 
-
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
-YAW_MODE = ["YAW_ANGLE", "YAW_SPEED"]
-CONTROL_MODE = ["POSITION_MODE", "SPEED_MODE", "SPEED_IN_A_PLANE",
-                "ACCEL_MODE", "ATTITUDE_MODE", "ACRO_MODE", "UNSET"]
-REFERENCE_FRAME = ["LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
-
+YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
+CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE", "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]            
+REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 class DroneInterface(Node):
-    def __init__(self, drone_id="drone0", verbose=False):
+    def __init__(self, drone_id="drone0", verbose=False, use_gps=False):
         super().__init__(f'{drone_id}_interface')
 
         self.__executor = rclpy.executors.SingleThreadedExecutor()
@@ -85,37 +82,59 @@ class DroneInterface(Node):
 
         self.info = PlatformInfoData()
         self.pose = PoseData()
-        self.gps = GpsData()
 
         self.namespace = drone_id
+        print(f"Starting {self.get_drone_id()}")
+
         self.info_sub = self.create_subscription(
             PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, qos_profile_system_default)
-        
+
         # TODO: Synchronious callbacks to pose and twist
         # self.pose_sub = message_filters.Subscriber(self, PoseStamped, f'{self.get_drone_id()}/self_localization/pose', qos_profile_sensor_data.get_c_qos_profile())
         # self.twist_sub = message_filters.Subscriber(self, TwistStamped, f'{self.get_drone_id()}/self_localization/twist', qos_profile_sensor_data.get_c_qos_profile())
-        
+
         # self._synchronizer = message_filters.ApproximateTimeSynchronizer(
         #     (self.pose_sub, self.twist_sub), 5, 0.01, allow_headerless=True)
         # self._synchronizer.registerCallback(self.pose_callback)
-        
+
         # Pose subscriber
         self.pose_sub = self.create_subscription(
             PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.pose_callback, qos_profile_sensor_data)
-        
+
         self.gps_sub = self.create_subscription(
             NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
-        
-        translator_namespace = ""
+
+        translator_namespace = self.namespace
         self.global_to_local_cli_ = self.create_client(
             GeopathToPath, f"{translator_namespace}/geopath_to_path")
         self.local_to_global_cli_ = self.create_client(
             PathToGeopath, f"{translator_namespace}/path_to_geopath")
 
-        self.set_origin_cli_ = self.create_client(
-            SetOrigin, f"{translator_namespace}/set_origin")
-        if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
-            self.get_logger().error("Set Origin not ready")
+        self.use_gps = use_gps
+        self.gps = GpsData()
+        if self.use_gps:
+            self.set_origin_cli_ = self.create_client(
+                SetOrigin, f"{translator_namespace}/set_origin")
+            if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
+                self.get_logger().warn("Set Origin not ready")
+
+        self.set_control_mode_cli_ = self.create_client(
+            SetControlMode, f'{self.get_drone_id()}/controller/set_control_mode')
+
+        if not self.set_control_mode_cli_.wait_for_service(timeout_sec=3):
+            self.get_logger().error("Set control mode not available")
+
+        self.motion_reference_pose_pub_ = self.create_publisher(
+            PoseStamped,  f'{self.get_drone_id()}/motion_reference/pose',  qos_profile_sensor_data)
+        self.motion_reference_twist_pub_ = self.create_publisher(
+            TwistStamped, f'{self.get_drone_id()}/motion_reference/twist', qos_profile_sensor_data)
+
+        self.control_mode_ = ControlMode()
+
+        # self.__executor.add_node(self)
+        # self.__executor.spin()
+        # self.__executor.shutdown()
+        # rclpy.shutdown()
 
         self.keep_running = True
         self.__executor.add_node(self)
@@ -146,16 +165,15 @@ class DroneInterface(Node):
 
     def pose_callback(self, pose_msg):
         self.pose.position = [pose_msg.pose.position.x,
-                          pose_msg.pose.position.y,
-                          pose_msg.pose.position.z]
-        
+                              pose_msg.pose.position.y,
+                              pose_msg.pose.position.z]
+
         self.pose.orientation = [
             *euler_from_quaternion(
-                pose_msg.pose.orientation.x, 
+                pose_msg.pose.orientation.x,
                 pose_msg.pose.orientation.y,
-                pose_msg.pose.orientation.z, 
+                pose_msg.pose.orientation.z,
                 pose_msg.pose.orientation.w)]
-            
 
     def get_position(self):
         return self.pose.position
@@ -173,7 +191,7 @@ class DroneInterface(Node):
         if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
             self.get_logger().error("GPS service not available")
             return
-        
+
         req = SetOrigin.Request()
         req.origin.latitude = float(gps_pose[0])
         req.origin.longitude = float(gps_pose[1])
@@ -188,11 +206,11 @@ class DroneInterface(Node):
         SendFollowPath(self, path_data)
 
     def takeoff(self, height=1.0, speed=0.5):
-        gps_pose = self.get_gps_pose()
-        self.set_home(gps_pose)
+        if self.use_gps:
+            gps_pose = self.get_gps_pose()
+            self.set_home(gps_pose)
 
         # self.__follow_path([self.get_position()[:2] + [height]], speed, TrajectoryWaypoints.PATH_FACING)
-
         SendTakeoff(self, float(height), float(speed))
 
     def follow_path(self, path, speed=1.0, yaw_mode=TrajectoryWaypoints.KEEP_YAW):
@@ -218,7 +236,7 @@ class DroneInterface(Node):
         if is_gps:
             msg = GeoPose()
             msg.position.latitude = (float)(x)
-            msg.position.longitude = (float)(y) 
+            msg.position.longitude = (float)(y)
             msg.position.altitude = (float)(z)
         else:
             msg = Pose()
@@ -232,14 +250,93 @@ class DroneInterface(Node):
 
     # TODO: python overloads?
     def go_to_point(self, point, speed, ignore_yaw=True):
-        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
+        self.__go_to(point[0], point[1], point[2],
+                     speed, ignore_yaw, is_gps=False)
 
     def go_to_gps(self, lat, lon, alt, speed, ignore_yaw=True):
         self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
 
     # TODO: python overloads?
     def go_to_gps_point(self, waypoint, speed, ignore_yaw=True):
-        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                     speed, ignore_yaw, is_gps=True)
+
+    def setMode(self, mode):
+        if type(mode) != ControlMode:
+            print("Invalid mode")
+            return
+
+        req = SetControlMode.Request()
+        req.control_mode = mode
+        resp = self.set_control_mode_cli_.call(req)
+        if resp.success:
+            self.control_mode_ = mode
+            return True
+
+        print("Failed to set mode")
+        return False
+
+    def send_motion_reference_pose(self, position, orientation=[0.0, 0.0, 0.0, 1.0]):
+        desired_control_mode_ = ControlMode()
+        desired_control_mode_.control_mode = ControlMode.POSITION
+        desired_control_mode_.yaw_mode = ControlMode.YAW_SPEED
+        desired_control_mode_.reference_frame = ControlMode.LOCAL_ENU_FRAME
+
+        if (self.control_mode_.control_mode != desired_control_mode_.control_mode or
+            self.control_mode_.yaw_mode != desired_control_mode_.yaw_mode or
+                self.control_mode_.reference_frame != desired_control_mode_.reference_frame):
+            success = self.setMode(desired_control_mode_)
+
+            if not success:
+                return
+
+        send_pose = PoseStamped()
+        send_pose.pose.position.x = position[0]
+        send_pose.pose.position.y = position[1]
+        send_pose.pose.position.z = position[2]
+
+        send_pose.pose.orientation.x = orientation[0]
+        send_pose.pose.orientation.y = orientation[1]
+        send_pose.pose.orientation.z = orientation[2]
+        send_pose.pose.orientation.w = orientation[3]
+
+        self.motion_reference_pose_pub_.publish(send_pose)
+        
+        send_twist = TwistStamped()
+        send_twist.twist.linear.x = 0.0
+        send_twist.twist.linear.y = 0.0
+        send_twist.twist.linear.z = 0.0
+
+        send_twist.twist.angular.x = 0.0
+        send_twist.twist.angular.y = 0.0
+        send_twist.twist.angular.z = 0.0
+
+        self.motion_reference_twist_pub_.publish(send_twist)
+
+    def send_motion_reference_twist(self, lineal, angular=[0.0, 0.0, 0.0]):
+        desired_control_mode_ = ControlMode()
+        desired_control_mode_.control_mode = ControlMode.SPEED
+        desired_control_mode_.yaw_mode = ControlMode.YAW_SPEED
+        desired_control_mode_.reference_frame = ControlMode.LOCAL_ENU_FRAME
+
+        if (self.control_mode_.control_mode != desired_control_mode_.control_mode or
+            self.control_mode_.yaw_mode != desired_control_mode_.yaw_mode or
+                self.control_mode_.reference_frame != desired_control_mode_.reference_frame):
+            success = self.setMode(desired_control_mode_)
+
+            if not success:
+                return
+
+        send_twist = TwistStamped()
+        send_twist.twist.linear.x = lineal[0]
+        send_twist.twist.linear.y = lineal[1]
+        send_twist.twist.linear.z = lineal[2]
+
+        send_twist.twist.angular.x = angular[0]
+        send_twist.twist.angular.y = angular[1]
+        send_twist.twist.angular.z = angular[2]
+
+        self.motion_reference_twist_pub_.publish(send_twist)
 
     def auto_spin(self):
         while rclpy.ok() and self.keep_running:
@@ -252,7 +349,8 @@ class DroneInterface(Node):
         self.destroy_subscription(self.pose_sub)
         self.destroy_subscription(self.gps_sub)
 
-        # self.destroy_client(self.set_origin_cli_)
+        if self.use_gps:
+            self.destroy_client(self.set_origin_cli_)
         self.destroy_client(self.global_to_local_cli_)
         self.destroy_client(self.local_to_global_cli_)
 
