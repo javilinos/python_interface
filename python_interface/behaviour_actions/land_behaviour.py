@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..behaviour_actions.action_handler import ActionHandler
+from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import Land
 
@@ -43,7 +43,7 @@ from as2_msgs.action import Land
 class SendLand(ActionHandler):
     def __init__(self, drone, speed=0.0):
         self._action_client = ActionClient(
-            drone, Land, f'{drone.get_drone_id()}/LandBehaviour')
+            drone, Land, f'LandBehaviour')
 
         goal_msg = Land.Goal()
         goal_msg.land_speed = speed

@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..behaviour_actions.action_handler import ActionHandler
+from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import GoToWaypoint
 from geometry_msgs.msg import PoseStamped, Pose
@@ -46,7 +46,7 @@ from as2_msgs.srv import GeopathToPath
 class SendGoToWaypoint(ActionHandler):
     def __init__(self, drone, pose, speed, ignore_pose_yaw):
         self._action_client = ActionClient(
-            drone, GoToWaypoint, f'{drone.get_drone_id()}/GoToWaypointBehaviour')
+            drone, GoToWaypoint, f'GoToWaypointBehaviour')
 
         self._drone = drone
 
@@ -61,7 +61,6 @@ class SendGoToWaypoint(ActionHandler):
             drone.get_logger().error(str(err))
         except (self.GoalRejected, self.GoalFailed) as err:
             drone.get_logger().warn(str(err))
-
 
     def get_pose(self, pose):
         if isinstance(pose, Pose):

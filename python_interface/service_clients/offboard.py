@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..service_clients.service_handler import ServiceHandler
+from python_interface.service_clients.service_handler import ServiceHandler
 from std_srvs.srv import SetBool
 from time import sleep
 
@@ -44,7 +44,7 @@ class Offboard(ServiceHandler):
     def __init__(self, drone, value=True):
 
         self._service_client = drone.create_client(
-            SetBool, f'{drone.get_drone_id()}/set_offboard_mode')
+            SetBool, f'set_offboard_mode')
 
         request = SetBool.Request()
         request.data = value

@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..behaviour_actions.action_handler import ActionHandler
+from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import TakeOff
 
@@ -43,7 +43,7 @@ from as2_msgs.action import TakeOff
 class SendTakeoff(ActionHandler):
     def __init__(self, drone, height, speed):
         self._action_client = ActionClient(
-            drone, TakeOff, f'{drone.get_drone_id()}/TakeOffBehaviour')
+            drone, TakeOff, f'TakeOffBehaviour')
 
         goal_msg = TakeOff.Goal()
         goal_msg.takeoff_height = height

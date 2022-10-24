@@ -35,7 +35,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from ..behaviour_actions.action_handler import ActionHandler
+from python_interface.behaviour_actions.action_handler import ActionHandler
 
 from rclpy.action import ActionClient
 
@@ -48,7 +48,7 @@ from as2_msgs.action import FollowPath
 
 from dataclasses import dataclass
 from typing import Any
-from ..tools.utils import path_to_list
+from python_interface.tools.utils import path_to_list
 
 
 class SendFollowPath(ActionHandler):
@@ -61,7 +61,7 @@ class SendFollowPath(ActionHandler):
 
     def __init__(self, drone, path_data):
         self._action_client = ActionClient(
-            drone, FollowPath, f'{drone.get_drone_id()}/FollowPathBehaviour')
+            drone, FollowPath, f'FollowPathBehaviour')
         self._drone = drone
 
         goal_msg = FollowPath.Goal()
