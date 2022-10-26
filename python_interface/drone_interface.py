@@ -45,6 +45,7 @@ import rclpy.signals
 import rclpy.executors
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
+from rclpy.parameter import Parameter
 import message_filters
 
 from sensor_msgs.msg import NavSatFix
@@ -73,9 +74,13 @@ CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE", "ATTI
 REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 class DroneInterface(Node):
-    def __init__(self, drone_id="drone0", verbose=False, use_gps=False):
-        super().__init__(f'{drone_id}_interface')
+    def __init__(self, drone_id="drone0", verbose=False, use_gps=False, use_sim_time=False):
+        super().__init__(f'{drone_id}_interface', namespace=drone_id)
 
+        self.param_use_sim_time = Parameter(
+            'use_sim_time', Parameter.Type.BOOL, use_sim_time)
+        self.set_parameters([self.param_use_sim_time])
+        
         self.__executor = rclpy.executors.SingleThreadedExecutor()
         if verbose:
             self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
@@ -87,11 +92,11 @@ class DroneInterface(Node):
         print(f"Starting {self.get_drone_id()}")
 
         self.info_sub = self.create_subscription(
-            PlatformInfo, f'{self.get_drone_id()}/platform/info', self.info_callback, qos_profile_system_default)
+            PlatformInfo, f'platform/info', self.info_callback, qos_profile_system_default)
 
         # TODO: Synchronious callbacks to pose and twist
-        # self.pose_sub = message_filters.Subscriber(self, PoseStamped, f'{self.get_drone_id()}/self_localization/pose', qos_profile_sensor_data.get_c_qos_profile())
-        # self.twist_sub = message_filters.Subscriber(self, TwistStamped, f'{self.get_drone_id()}/self_localization/twist', qos_profile_sensor_data.get_c_qos_profile())
+        # self.pose_sub = message_filters.Subscriber(self, PoseStamped, f'self_localization/pose', qos_profile_sensor_data.get_c_qos_profile())
+        # self.twist_sub = message_filters.Subscriber(self, TwistStamped, f'self_localization/twist', qos_profile_sensor_data.get_c_qos_profile())
 
         # self._synchronizer = message_filters.ApproximateTimeSynchronizer(
         #     (self.pose_sub, self.twist_sub), 5, 0.01, allow_headerless=True)
@@ -99,10 +104,10 @@ class DroneInterface(Node):
 
         # Pose subscriber
         self.pose_sub = self.create_subscription(
-            PoseStamped, f'{self.get_drone_id()}/self_localization/pose', self.pose_callback, qos_profile_sensor_data)
+            PoseStamped, f'self_localization/pose', self.pose_callback, qos_profile_sensor_data)
 
         self.gps_sub = self.create_subscription(
-            NavSatFix, f'{self.get_drone_id()}/sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
+            NavSatFix, f'sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
 
         translator_namespace = self.namespace
         self.global_to_local_cli_ = self.create_client(
@@ -119,15 +124,15 @@ class DroneInterface(Node):
                 self.get_logger().warn("Set Origin not ready")
 
         self.set_control_mode_cli_ = self.create_client(
-            SetControlMode, f'{self.get_drone_id()}/controller/set_control_mode')
+            SetControlMode, f'controller/set_control_mode')
 
         if not self.set_control_mode_cli_.wait_for_service(timeout_sec=3):
             self.get_logger().error("Set control mode not available")
 
         self.motion_reference_pose_pub_ = self.create_publisher(
-            PoseStamped,  f'{self.get_drone_id()}/motion_reference/pose',  qos_profile_sensor_data)
+            PoseStamped,  f'motion_reference/pose',  qos_profile_sensor_data)
         self.motion_reference_twist_pub_ = self.create_publisher(
-            TwistStamped, f'{self.get_drone_id()}/motion_reference/twist', qos_profile_sensor_data)
+            TwistStamped, f'motion_reference/twist', qos_profile_sensor_data)
 
         self.control_mode_ = ControlMode()
 
@@ -279,7 +284,7 @@ class DroneInterface(Node):
     def send_motion_reference_pose(self, position, orientation=[0.0, 0.0, 0.0, 1.0]):
         desired_control_mode_ = ControlMode()
         desired_control_mode_.control_mode = ControlMode.POSITION
-        desired_control_mode_.yaw_mode = ControlMode.YAW_SPEED
+        desired_control_mode_.yaw_mode = ControlMode.YAW_ANGLE
         desired_control_mode_.reference_frame = ControlMode.LOCAL_ENU_FRAME
 
         if (self.control_mode_.control_mode != desired_control_mode_.control_mode or
@@ -291,6 +296,7 @@ class DroneInterface(Node):
                 return
 
         send_pose = PoseStamped()
+        send_pose.header.frame_id = "earth"
         send_pose.pose.position.x = position[0]
         send_pose.pose.position.y = position[1]
         send_pose.pose.position.z = position[2]
@@ -303,6 +309,7 @@ class DroneInterface(Node):
         self.motion_reference_pose_pub_.publish(send_pose)
         
         send_twist = TwistStamped()
+        send_twist.header.frame_id = self.get_drone_id() + "/base_link"
         send_twist.twist.linear.x = 0.0
         send_twist.twist.linear.y = 0.0
         send_twist.twist.linear.z = 0.0
