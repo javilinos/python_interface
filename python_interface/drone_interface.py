@@ -1,3 +1,7 @@
+"""
+A collection of utils to easily command drones with AeroStack2.
+"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -33,10 +37,6 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
-"""
-A collection of utils to easily command drones with AeroStack2.
-"""
-
 import threading
 from time import sleep
 
@@ -50,9 +50,9 @@ import message_filters
 
 from sensor_msgs.msg import NavSatFix
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, ControlMode
+from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControlMode
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
-from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControlMode
 
 from .shared_data.platform_info_data import PlatformInfoData
 from .shared_data.pose_data import PoseData
@@ -68,10 +68,13 @@ from .service_clients.offboard import Offboard
 
 from .tools.utils import euler_from_quaternion
 
+
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
 YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
-CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE", "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]            
+CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE",
+                "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]
 REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
+
 
 class DroneInterface(Node):
     def __init__(self, drone_id="drone0", verbose=False, use_gps=False, use_sim_time=False):
