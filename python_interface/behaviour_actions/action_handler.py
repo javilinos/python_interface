@@ -1,3 +1,5 @@
+"""Action handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,22 +38,25 @@ __version__ = "0.1.0"
 
 
 from time import sleep
+
+from rclpy.action import ActionClient
 from action_msgs.msg import GoalStatus
 
 
 class ActionHandler:
+    """Action handler"""
     TIMEOUT = 3  # seconds
 
     class ActionNotAvailable(Exception):
-        pass
+        """Action not available exception"""
 
     class GoalRejected(Exception):
-        pass
+        """Goal rejected exception"""
 
     class GoalFailed(Exception):
-        pass
+        """Goal failed exception"""
 
-    def __init__(self, action_client, goal_msg, logger):
+    def __init__(self, action_client: ActionClient, goal_msg, logger) -> None:
         self._logger = logger
 
         # Wait for Action availability
@@ -59,7 +64,8 @@ class ActionHandler:
             raise self.ActionNotAvailable('Action Not Available')
 
         # Sending goal
-        send_goal_future = action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        send_goal_future = action_client.send_goal_async(goal_msg,
+                                            feedback_callback=self.feedback_callback)
 
         # Waiting to sending goal result
         while not send_goal_future.done():
@@ -79,11 +85,12 @@ class ActionHandler:
         # Check action result
         status = get_result_future.result().status
         if status == GoalStatus.STATUS_SUCCEEDED:
-            self._logger.info("Result: {0}".format(get_result_future.result().result))
+            self._logger.info(f"Result: {get_result_future.result().result}")
         else:
-            raise self.GoalFailed("Goal failed with status code: {0}".format(status))
+            raise self.GoalFailed(f"Goal failed with status code: {status}")
 
         action_client.destroy()
 
-    def feedback_callback(self, feedback_msg):
-        self._logger.debug('Received feedback: {0}'.format(feedback_msg.feedback))
+    def feedback_callback(self, feedback_msg) -> None:
+        """feedback callback"""
+        self._logger.debug(f'Received feedback: {feedback_msg.feedback}')

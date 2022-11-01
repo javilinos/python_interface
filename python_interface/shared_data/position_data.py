@@ -1,3 +1,5 @@
+"""Position data wrapper"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,26 +38,36 @@ __version__ = "0.1.0"
 
 
 import threading
+from typing import Callable, List
 
 lock = threading.Lock()
 
-def lock_decor(func):
-    def wrapper(self,*args, **kwargs):
+def lock_decor(func: Callable) -> Callable:
+    """locker decorator"""
+    def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
             return func(self,*args, **kwargs)
     return wrapper
 
 
+# TODO: change to dataclass
 class PositionData:
-    def __init__(self):
+    """Position data [x y z]"""
+    def __init__(self) -> None:
         self.position = [float('nan'), float('nan'), float('nan')]
+
+    def __repr__(self) -> str:
+        pos = self.position
+        return f"[{pos[0]}, {pos[1]}, {pos[2]}]"
 
     @property
     @lock_decor
-    def position(self):
+    def position(self) -> List[float]:
+        """locked getter"""
         return self.__position
 
     @position.setter
     @lock_decor
-    def position(self, p):
-        self.__position = p
+    def position(self, pos: List[float]) -> None:
+        """locked settter"""
+        self.__position = pos

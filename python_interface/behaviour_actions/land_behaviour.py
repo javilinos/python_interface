@@ -1,3 +1,5 @@
+"""Land action handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -34,16 +36,17 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
-
-from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import Land
 
+from ..drone_interface import DroneInterface
+from ..behaviour_actions.action_handler import ActionHandler
+
 
 class SendLand(ActionHandler):
-    def __init__(self, drone, speed=0.0):
-        self._action_client = ActionClient(
-            drone, Land, f'LandBehaviour')
+    """Land action"""
+    def __init__(self, drone: DroneInterface, speed: float = 0.0):
+        self._action_client = ActionClient(drone, Land, 'LandBehaviour')
 
         goal_msg = Land.Goal()
         goal_msg.land_speed = speed

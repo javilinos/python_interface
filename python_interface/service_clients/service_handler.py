@@ -1,3 +1,5 @@
+"""Service handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -35,24 +37,26 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
+from rclpy.client import Client
+
+
 class ServiceHandler:
+    """Service handler class"""
     TIMEOUT = 3  # seconds
 
     class ServiceNotAvailable(Exception):
-        pass
+        """Service not available exception"""
 
     class ServiceFailed(Exception):
-        pass
+        """Service failed exection"""
 
-    def __init__(self, service_client, request_msg, logger):
+    def __init__(self, service_client: Client, request_msg, logger) -> None:
         self._logger = logger
-        response = None
+        self.response = None
 
         # Wait for Action availability
         if not service_client.wait_for_service(timeout_sec=self.TIMEOUT):
             raise self.ServiceNotAvailable('Service not Available')
 
         # Sending goal
-        response = service_client.call(request_msg)
-
-        return response
+        self.response = service_client.call(request_msg)

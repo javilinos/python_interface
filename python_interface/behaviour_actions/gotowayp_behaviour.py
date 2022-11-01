@@ -1,3 +1,5 @@
+"""Goto action handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -34,19 +36,25 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+from typing import Tuple
 
-from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
+
 from as2_msgs.action import GoToWaypoint
+from as2_msgs.srv import GeopathToPath
 from geometry_msgs.msg import PoseStamped, Pose
 from geographic_msgs.msg import GeoPoseStamped, GeoPose
-from as2_msgs.srv import GeopathToPath
+
+from ..drone_interface import DroneInterface
+from ..behaviour_actions.action_handler import ActionHandler
 
 
 class SendGoToWaypoint(ActionHandler):
-    def __init__(self, drone, pose, speed, ignore_pose_yaw):
-        self._action_client = ActionClient(
-            drone, GoToWaypoint, f'GoToWaypointBehaviour')
+    """Go to action"""
+    def __init__(self, drone: DroneInterface,
+                 pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped],
+                 speed: float, ignore_pose_yaw: bool):
+        self._action_client = ActionClient(drone, GoToWaypoint, 'GoToWaypointBehaviour')
 
         self._drone = drone
 
@@ -62,16 +70,17 @@ class SendGoToWaypoint(ActionHandler):
         except (self.GoalRejected, self.GoalFailed) as err:
             drone.get_logger().warn(str(err))
 
-    def get_pose(self, pose):
+    def get_pose(self, pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped]):
+        """get pose msg"""
         if isinstance(pose, Pose):
             return pose
-        elif isinstance(pose, PoseStamped):
+        if isinstance(pose, PoseStamped):
             return pose.pose
-        elif isinstance(pose, GeoPose):
+        if isinstance(pose, GeoPose):
             geopose = GeoPoseStamped()
             geopose.pose = pose
             return self.get_pose(geopose)
-        elif isinstance(pose, GeoPoseStamped):
+        if isinstance(pose, GeoPoseStamped):
             req = GeopathToPath.Request()
             req.geo_path.poses = [pose]
             resp = self._drone.global_to_local_cli_.call(req)
@@ -80,5 +89,5 @@ class SendGoToWaypoint(ActionHandler):
                 raise self.GoalFailed("GPS service not available")
 
             return resp.path.poses[0].pose
-        else:
-            raise self.GoalRejected("Goal format invalid")
+
+        raise self.GoalRejected("Goal format invalid")

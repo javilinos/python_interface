@@ -1,3 +1,5 @@
+"""Pose data wrapper (position + orientation)"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -35,27 +37,40 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
+from dataclasses import dataclass
+from typing import List
+
 from ..shared_data.position_data import PositionData
 from ..shared_data.orientation_data import OrientationData
 
 
+@dataclass
 class PoseData:
-    def __init__(self):
-        self.__pose = PositionData()
-        self.__orientation = OrientationData()
+    """Pose data"""
+    __pose: PositionData = PositionData()
+    __orientation: OrientationData = OrientationData()
+
+    def __repr__(self) -> str:
+        pose = self.position
+        orient = self.orientation
+        return f"[{pose[0]}, {pose[1]}, {pose[2]}], [{orient[0]}, {orient[1]}, {orient[2]}]"
 
     @property
-    def position(self):
+    def position(self) -> List[float]:
+        """position getter"""
         return self.__pose.position
 
     @position.setter
-    def position(self, p):
-        self.__pose.position = p
+    def position(self, pos: List[float]) -> None:
+        """position setter"""
+        self.__pose.position = pos
 
     @property
-    def orientation(self):
+    def orientation(self) -> List[float]:
+        """orientation getter"""
         return self.__orientation.orientation
 
     @orientation.setter
-    def orientation(self, o):
-        self.__orientation.orientation = o
+    def orientation(self, orient: List[float]) -> None:
+        """orientation setter"""
+        self.__orientation.orientation = orient

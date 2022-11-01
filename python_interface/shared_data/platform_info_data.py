@@ -1,3 +1,5 @@
+"""Platform info data wrapper"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,26 +38,37 @@ __version__ = "0.1.0"
 
 
 import threading
+from typing import Callable, List, Union
 
 lock = threading.Lock()
 
-def lock_decor(func):
-    def wrapper(self,*args, **kwargs):
+def lock_decor(func: Callable) -> Callable:
+    """locker decorator"""
+    def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
             return func(self,*args, **kwargs)
     return wrapper
 
 
+# TODO: change to dataclass
 class PlatformInfoData:
-    def __init__(self):
+    """Platform info [connected armed offboard state yaw_mode control_mode reference_frame]"""
+    def __init__(self) -> None:
         self.data = [0, 0, 0, 0, 0]
+
+    def __repr__(self) -> str:
+        info = self.data
+        return f"[{bool(info[0])}, {bool(info[1])}, {bool(info[2])}, \
+                 {info[3]}, {info[4]}, {info[5]}, {info[6]}]"
 
     @property
     @lock_decor
-    def data(self):
+    def data(self) -> List[Union[bool, int]]:
+        """locked getter"""
         return self.__data
 
     @data.setter
     @lock_decor
-    def data(self, d):
-        self.__data = d
+    def data(self, dat: List[Union[bool, int]]) -> None:
+        """locked setter"""
+        self.__data = dat

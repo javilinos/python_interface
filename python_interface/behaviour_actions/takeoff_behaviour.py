@@ -1,3 +1,5 @@
+"""Takeoff action handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -34,16 +36,17 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
-
-from python_interface.behaviour_actions.action_handler import ActionHandler
 from rclpy.action import ActionClient
 from as2_msgs.action import TakeOff
 
+from ..drone_interface import DroneInterface
+from ..behaviour_actions.action_handler import ActionHandler
+
 
 class SendTakeoff(ActionHandler):
-    def __init__(self, drone, height, speed):
-        self._action_client = ActionClient(
-            drone, TakeOff, f'TakeOffBehaviour')
+    """Takeoff action"""
+    def __init__(self, drone: DroneInterface, height: float, speed: float):
+        self._action_client = ActionClient(drone, TakeOff, 'TakeOffBehaviour')
 
         goal_msg = TakeOff.Goal()
         goal_msg.takeoff_height = height

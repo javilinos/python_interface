@@ -1,3 +1,5 @@
+"""Offboard service handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -34,21 +36,23 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
-
-from python_interface.service_clients.service_handler import ServiceHandler
-from std_srvs.srv import SetBool
 from time import sleep
+from std_srvs.srv import SetBool
+
+from ..drone_interface import DroneInterface
+from ..service_clients.service_handler import ServiceHandler
 
 
 class Offboard(ServiceHandler):
-    def __init__(self, drone, value=True):
+    """Offboard service handler"""
+    def __init__(self, drone: DroneInterface, value: bool = True) -> None:
 
-        self._service_client = drone.create_client(
-            SetBool, f'set_offboard_mode')
+        self._service_client = drone.create_client(SetBool, 'set_offboard_mode')
 
         request = SetBool.Request()
         request.data = value
         sleep(0.5)
+
         try:
             super().__init__(self._service_client, request, drone.get_logger())
         except self.ServiceNotAvailable as err:

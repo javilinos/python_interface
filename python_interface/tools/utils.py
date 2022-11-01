@@ -1,3 +1,5 @@
+"""Different utility methods"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,30 +38,34 @@ __version__ = "0.1.0"
 
 
 from math import atan2, asin
+from typing import Tuple, List
 
+from nav_msgs.msg import Path
 
-def euler_from_quaternion(x, y, z, w):
+def euler_from_quaternion(_x: float, _y: float, _z: float, _w: float) -> Tuple[float, float, float]:
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
-    roll is rotation around x in radians (counterclockwise)
-    pitch is rotation around y in radians (counterclockwise)
-    yaw is rotation around z in radians (counterclockwise)
+    roll is rotation around _x in radians (counterclockwise)
+    pitch is rotation around _y in radians (counterclockwise)
+    yaw is rotation around _z in radians (counterclockwise)
     """
-    t0 = +2.0 * (w * x + y * z)
-    t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll_x = atan2(t0, t1)
-     
-    t2 = +2.0 * (w * y - z * x)
-    t2 = +1.0 if t2 > +1.0 else t2
-    t2 = -1.0 if t2 < -1.0 else t2
-    pitch_y = asin(t2)
-     
-    t3 = +2.0 * (w * z + x * y)
-    t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw_z = atan2(t3, t4)
-     
+    t_0 = +2.0 * (_w * _x + _y * _z)
+    t_1 = +1.0 - 2.0 * (_x * _x + _y * _y)
+    roll_x = atan2(t_0, t_1)
+
+    t_2 = +2.0 * (_w * _y - _z * _x)
+    t_2 = +1.0 if t_2 > +1.0 else t_2
+    t_2 = -1.0 if t_2 < -1.0 else t_2
+    pitch_y = asin(t_2)
+
+    t_3 = +2.0 * (_w * _z + _x * _y)
+    t_4 = +1.0 - 2.0 * (_y * _y + _z * _z)
+    yaw_z = atan2(t_3, t_4)
+
     return roll_x, pitch_y, yaw_z # in radians
 
 
-def path_to_list(path):
-    return list(map(lambda p: [p.pose.position.x, p.pose.position.y, p.pose.position.z], path.poses))
+def path_to_list(path: Path) -> List[List[float]]:
+    """Converts path into list"""
+    return list(map(lambda p: [p.pose.position.x, p.pose.position.y, p.pose.position.z],
+                    path.poses))
