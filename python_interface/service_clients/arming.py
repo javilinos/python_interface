@@ -1,3 +1,5 @@
+"""Arming service handler"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,22 +38,25 @@ __version__ = "0.1.0"
 
 
 from time import sleep
-from python_interface.service_clients.service_handler import ServiceHandler
 from std_srvs.srv import SetBool
+
+from ..drone_interface import DroneInterface
+from ..service_clients.service_handler import ServiceHandler
 
 
 class Arm(ServiceHandler):
-    def __init__(self, drone, value=True):
+    """Arming service handler class"""
+    def __init__(self, drone: DroneInterface, value: bool = True) -> None:
         try:
-            self._service_client = drone.create_client(
-                SetBool, f'set_arming_state')
+            self._service_client = drone.create_client(SetBool, 'set_arming_state')
+        except Exception as ex:
+            print('Set_arming_state not available')
+            raise ex
 
-        except:
-            raise Exception(
-                f'set_arming_state not available')
         request = SetBool.Request()
         request.data = value
         sleep(0.5)
+
         try:
             super().__init__(self._service_client, request, drone.get_logger())
         except self.ServiceNotAvailable as err:
@@ -59,5 +64,6 @@ class Arm(ServiceHandler):
 
 
 class Disarm(Arm):
+    """Disarming service handler"""
     def __init__(self, drone):
         super().__init__(drone, False)

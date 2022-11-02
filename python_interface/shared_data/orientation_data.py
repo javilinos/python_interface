@@ -1,3 +1,5 @@
+"""Orienation data wrapper"""
+
 # Copyright (c) 2022 Universidad Politécnica de Madrid
 # All Rights Reserved
 #
@@ -36,26 +38,36 @@ __version__ = "0.1.0"
 
 
 import threading
+from typing import Callable, List
 
 lock = threading.Lock()
 
-def lock_decor(func):
-    def wrapper(self,*args, **kwargs):
+def lock_decor(func: Callable) -> Callable:
+    """locker decorator"""
+    def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
             return func(self,*args, **kwargs)
     return wrapper
 
 
+# TODO: change to dataclass
 class OrientationData:
-    def __init__(self):
+    """Orientation data [roll pitch yaw]"""
+    def __init__(self) -> None:
         self.orientation = [float('nan'), float('nan'), float('nan')]
+
+    def __repr__(self) -> str:
+        orient = self.orientation
+        return f"[{orient[0]}, {orient[1]}, {orient[2]}]"
 
     @property
     @lock_decor
-    def orientation(self):
+    def orientation(self) -> List[float]:
+        """locked getter"""
         return self.__orientation
 
     @orientation.setter
     @lock_decor
-    def orientation(self, o):
-        self.__orientation = o
+    def orientation(self, orient: List[float]) -> None:
+        """locked setter"""
+        self.__orientation = orient
