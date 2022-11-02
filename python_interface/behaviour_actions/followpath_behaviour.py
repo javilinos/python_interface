@@ -36,6 +36,7 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+import typing
 from dataclasses import dataclass
 from typing import Any, Union
 
@@ -47,9 +48,11 @@ from as2_msgs.msg import TrajectoryWaypoints
 from as2_msgs.srv import GeopathToPath
 from as2_msgs.action import FollowPath
 
-from ..drone_interface import DroneInterface
 from ..behaviour_actions.action_handler import ActionHandler
 from ..tools.utils import path_to_list
+
+if typing.TYPE_CHECKING:
+    from ..drone_interface import DroneInterface
 
 
 class SendFollowPath(ActionHandler):
@@ -63,7 +66,7 @@ class SendFollowPath(ActionHandler):
         yaw_mode: TrajectoryWaypoints.yaw_mode = TrajectoryWaypoints.KEEP_YAW
         is_gps: bool = False
 
-    def __init__(self, drone: DroneInterface,
+    def __init__(self, drone: 'DroneInterface',
                  path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints]) -> None:
         self._action_client = ActionClient(drone, FollowPath, 'FollowPathBehaviour')
         self._drone = drone

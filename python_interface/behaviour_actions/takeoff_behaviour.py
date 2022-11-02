@@ -36,16 +36,19 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+import typing
 from rclpy.action import ActionClient
 from as2_msgs.action import TakeOff
 
-from ..drone_interface import DroneInterface
 from ..behaviour_actions.action_handler import ActionHandler
+
+if typing.TYPE_CHECKING:
+    from ..drone_interface import DroneInterface
 
 
 class SendTakeoff(ActionHandler):
     """Takeoff action"""
-    def __init__(self, drone: DroneInterface, height: float, speed: float):
+    def __init__(self, drone: 'DroneInterface', height: float, speed: float) -> None:
         self._action_client = ActionClient(drone, TakeOff, 'TakeOffBehaviour')
 
         goal_msg = TakeOff.Goal()

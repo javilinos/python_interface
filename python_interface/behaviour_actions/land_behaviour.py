@@ -36,16 +36,19 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+import typing
 from rclpy.action import ActionClient
 from as2_msgs.action import Land
 
-from ..drone_interface import DroneInterface
 from ..behaviour_actions.action_handler import ActionHandler
+
+if typing.TYPE_CHECKING:
+    from ..drone_interface import DroneInterface
 
 
 class SendLand(ActionHandler):
     """Land action"""
-    def __init__(self, drone: DroneInterface, speed: float = 0.0):
+    def __init__(self, drone: 'DroneInterface', speed: float = 0.0) -> None:
         self._action_client = ActionClient(drone, Land, 'LandBehaviour')
 
         goal_msg = Land.Goal()

@@ -36,6 +36,7 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+import typing
 from typing import Tuple
 
 from rclpy.action import ActionClient
@@ -45,15 +46,17 @@ from as2_msgs.srv import GeopathToPath
 from geometry_msgs.msg import PoseStamped, Pose
 from geographic_msgs.msg import GeoPoseStamped, GeoPose
 
-from ..drone_interface import DroneInterface
 from ..behaviour_actions.action_handler import ActionHandler
+
+if typing.TYPE_CHECKING:
+    from ..drone_interface import DroneInterface
 
 
 class SendGoToWaypoint(ActionHandler):
     """Go to action"""
-    def __init__(self, drone: DroneInterface,
+    def __init__(self, drone: 'DroneInterface',
                  pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped],
-                 speed: float, ignore_pose_yaw: bool):
+                 speed: float, ignore_pose_yaw: bool) -> None:
         self._action_client = ActionClient(drone, GoToWaypoint, 'GoToWaypointBehaviour')
 
         self._drone = drone

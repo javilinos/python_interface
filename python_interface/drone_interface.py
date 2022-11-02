@@ -91,7 +91,7 @@ class DroneInterface(Node):
         if verbose:
             self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
-        self.info = PlatformInfoData()
+        self.__info = PlatformInfoData()
         self.pose = PoseData()
 
         self.namespace = drone_id
@@ -167,12 +167,12 @@ class DroneInterface(Node):
 
     def info_callback(self, msg: PlatformInfo) -> None:
         """platform info callback"""
-        self.info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
+        self.__info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
                           msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
                           msg.current_control_mode.reference_frame]
 
     def __get_info(self) -> List[int]:
-        return self.info.data
+        return self.__info.data
 
     @property
     def info(self) -> Dict[str, Union[bool, str]]:
@@ -286,7 +286,7 @@ class DroneInterface(Node):
         self.__go_to(_x, _y, _z, speed, ignore_yaw, is_gps=False)
 
     # TODO: python overloads?
-    def go_to_point(self, point: List[float, float, float],
+    def go_to_point(self, point: List[float],
                     speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to"""
         self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
@@ -297,7 +297,7 @@ class DroneInterface(Node):
         self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
 
     # TODO: python overloads?
-    def go_to_gps_point(self, waypoint: List[float, float, float],
+    def go_to_gps_point(self, waypoint: List[float],
                         speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to gps point"""
         self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
