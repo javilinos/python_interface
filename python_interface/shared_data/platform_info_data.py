@@ -54,7 +54,7 @@ def lock_decor(func: Callable) -> Callable:
 class PlatformInfoData:
     """Platform info [connected armed offboard state yaw_mode control_mode reference_frame]"""
     def __init__(self) -> None:
-        self.data = [0, 0, 0, 0, 0]
+        self.data = [0, 0, 0, 0, 0, 0, 0]
 
     def __repr__(self) -> str:
         info = self.data

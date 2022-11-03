@@ -36,16 +36,19 @@ __copyright__ = "Copyright (c) 2022 Universidad Politécnica de Madrid"
 __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
+import typing
 from time import sleep
 from std_srvs.srv import SetBool
 
-from ..drone_interface import DroneInterface
 from ..service_clients.service_handler import ServiceHandler
+
+if typing.TYPE_CHECKING:
+    from ..drone_interface import DroneInterface
 
 
 class Offboard(ServiceHandler):
     """Offboard service handler"""
-    def __init__(self, drone: DroneInterface, value: bool = True) -> None:
+    def __init__(self, drone: 'DroneInterface', value: bool = True) -> None:
 
         self._service_client = drone.create_client(SetBool, 'set_offboard_mode')
 
