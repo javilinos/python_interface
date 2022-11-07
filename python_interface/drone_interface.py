@@ -50,14 +50,20 @@ from rclpy.parameter import Parameter
 import message_filters
 
 from sensor_msgs.msg import NavSatFix
-from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, ControlMode
-from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath, SetControlMode
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
+from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
 from nav_msgs.msg import Path
 
+from motion_reference_handlers.hover_motion import HoverMotion
+from motion_reference_handlers.position_motion import PositionMotion
+from motion_reference_handlers.speed_motion import SpeedMotion
+from motion_reference_handlers.speed_in_a_plane import SpeedInAPlaneMotion
+
 from .shared_data.platform_info_data import PlatformInfoData
 from .shared_data.pose_data import PoseData
+from .shared_data.twist_data import TwistData
 from .shared_data.gps_data import GpsData
 
 from .behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
@@ -75,16 +81,19 @@ STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
 YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
 CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE",
                 "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]
-REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
+REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME",
+                   "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 
 class DroneInterface(Node):
     """Drone interface node"""
+
     def __init__(self, drone_id: str = "drone0", verbose: bool = False,
                  use_gps: bool = False, use_sim_time: bool = False) -> None:
         super().__init__(f'{drone_id}_interface', namespace=drone_id)
 
-        self.param_use_sim_time = Parameter('use_sim_time', Parameter.Type.BOOL, use_sim_time)
+        self.param_use_sim_time = Parameter(
+            'use_sim_time', Parameter.Type.BOOL, use_sim_time)
         self.set_parameters([self.param_use_sim_time])
 
         self.__executor = rclpy.executors.SingleThreadedExecutor()
@@ -93,6 +102,7 @@ class DroneInterface(Node):
 
         self.__info = PlatformInfoData()
         self.pose = PoseData()
+        self.twist = TwistData()
 
         self.namespace = drone_id
         print(f"Starting {self.drone_id}")
@@ -110,9 +120,12 @@ class DroneInterface(Node):
         #     (self.pose_sub, self.twist_sub), 5, 0.01, allow_headerless=True)
         # self._synchronizer.registerCallback(self.pose_callback)
 
-        # Pose subscriber
+        # State subscriber
         self.pose_sub = self.create_subscription(
             PoseStamped, 'self_localization/pose', self.pose_callback, qos_profile_sensor_data)
+
+        self.twist_sub = self.create_subscription(
+            TwistStamped, 'self_localization/twist', self.twist_callback, qos_profile_sensor_data)
 
         self.gps_sub = self.create_subscription(
             NavSatFix, 'sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
@@ -131,18 +144,10 @@ class DroneInterface(Node):
             if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
                 self.get_logger().warn("Set Origin not ready")
 
-        self.set_control_mode_cli_ = self.create_client(
-            SetControlMode, 'controller/set_control_mode')
-
-        if not self.set_control_mode_cli_.wait_for_service(timeout_sec=3):
-            self.get_logger().error("Set control mode not available")
-
-        self.motion_reference_pose_pub_ = self.create_publisher(
-            PoseStamped,  'motion_reference/pose',  qos_profile_sensor_data)
-        self.motion_reference_twist_pub_ = self.create_publisher(
-            TwistStamped, 'motion_reference/twist', qos_profile_sensor_data)
-
-        self.control_mode_ = ControlMode()
+        self.hover_motion_handler = HoverMotion(self)
+        self.position_motion_handler = PositionMotion(self)
+        self.speed_motion_handler = SpeedMotion(self)
+        self.speed_in_a_plane_motion_handler = SpeedInAPlaneMotion(self)
 
         # self.__executor.add_node(self)
         # self.__executor.spin()
@@ -168,8 +173,8 @@ class DroneInterface(Node):
     def info_callback(self, msg: PlatformInfo) -> None:
         """platform info callback"""
         self.__info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
-                          msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
-                          msg.current_control_mode.reference_frame]
+                            msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
+                            msg.current_control_mode.reference_frame]
 
     def __get_info(self) -> List[int]:
         return self.__info.data
@@ -179,7 +184,7 @@ class DroneInterface(Node):
         """get drone info"""
         info = self.__get_info()
         return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]),
-                "state": STATE[info[3]],"yaw_mode": YAW_MODE[info[4]],
+                "state": STATE[info[3]], "yaw_mode": YAW_MODE[info[4]],
                 "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
 
     def pose_callback(self, pose_msg: PoseStamped) -> None:
@@ -204,6 +209,17 @@ class DroneInterface(Node):
     def orientation(self) -> List[float]:
         """drone orientation getter"""
         return self.pose.orientation
+
+    def twist_callback(self, twist_msg: TwistStamped) -> None:
+        """twist stamped callback"""
+        self.twist.twist = [twist_msg.twist.linear.x,
+                            twist_msg.twist.linear.y,
+                            twist_msg.twist.linear.z]
+
+    @property
+    def speed(self) -> List[float]:
+        """drone speed getter"""
+        return self.twist.twist
 
     def gps_callback(self, msg: NavSatFix) -> None:
         """navdata (gps) callback"""
@@ -289,7 +305,8 @@ class DroneInterface(Node):
     def go_to_point(self, point: List[float],
                     speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to"""
-        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
+        self.__go_to(point[0], point[1], point[2],
+                     speed, ignore_yaw, is_gps=False)
 
     def go_to_gps(self, lat: float, lon: float, alt: float,
                   speed: float, ignore_yaw: bool = True) -> None:
@@ -300,91 +317,8 @@ class DroneInterface(Node):
     def go_to_gps_point(self, waypoint: List[float],
                         speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to gps point"""
-        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
-
-    def set_mode(self, mode: ControlMode) -> bool:
-        """Set control mode"""
-        if isinstance(mode) != ControlMode:
-            print("Invalid mode")
-            raise TypeError
-
-        req = SetControlMode.Request()
-        req.control_mode = mode
-        resp = self.set_control_mode_cli_.call(req)
-        if resp.success:
-            self.control_mode_ = mode
-            return True
-
-        print("Failed to set mode")
-        return False
-
-    def send_motion_reference_pose(self, position: List[float],
-                                   orientation: List[float] = [0.0, 0.0, 0.0, 1.0]) -> None:
-        """Send motion reference pose"""
-        desired_control_mode_ = ControlMode()
-        desired_control_mode_.control_mode = ControlMode.POSITION
-        desired_control_mode_.yaw_mode = ControlMode.YAW_ANGLE
-        desired_control_mode_.reference_frame = ControlMode.LOCAL_ENU_FRAME
-
-        if (self.control_mode_.control_mode != desired_control_mode_.control_mode or
-            self.control_mode_.yaw_mode != desired_control_mode_.yaw_mode or
-                self.control_mode_.reference_frame != desired_control_mode_.reference_frame):
-            success = self.set_mode(desired_control_mode_)
-
-            if not success:
-                return
-
-        send_pose = PoseStamped()
-        send_pose.header.frame_id = "earth"
-        send_pose.pose.position.x = position[0]
-        send_pose.pose.position.y = position[1]
-        send_pose.pose.position.z = position[2]
-
-        send_pose.pose.orientation.x = orientation[0]
-        send_pose.pose.orientation.y = orientation[1]
-        send_pose.pose.orientation.z = orientation[2]
-        send_pose.pose.orientation.w = orientation[3]
-
-        self.motion_reference_pose_pub_.publish(send_pose)
-
-        send_twist = TwistStamped()
-        send_twist.header.frame_id = self.drone_id + "/base_link"
-        send_twist.twist.linear.x = 0.0
-        send_twist.twist.linear.y = 0.0
-        send_twist.twist.linear.z = 0.0
-
-        send_twist.twist.angular.x = 0.0
-        send_twist.twist.angular.y = 0.0
-        send_twist.twist.angular.z = 0.0
-
-        self.motion_reference_twist_pub_.publish(send_twist)
-
-    def send_motion_reference_twist(self, lineal: List[float],
-                                    angular: List[float] = [0.0, 0.0, 0.0]) -> None:
-        """Send motion reference twist"""
-        desired_control_mode_ = ControlMode()
-        desired_control_mode_.control_mode = ControlMode.SPEED
-        desired_control_mode_.yaw_mode = ControlMode.YAW_SPEED
-        desired_control_mode_.reference_frame = ControlMode.LOCAL_ENU_FRAME
-
-        if (self.control_mode_.control_mode != desired_control_mode_.control_mode or
-            self.control_mode_.yaw_mode != desired_control_mode_.yaw_mode or
-                self.control_mode_.reference_frame != desired_control_mode_.reference_frame):
-            success = self.set_mode(desired_control_mode_)
-
-            if not success:
-                return
-
-        send_twist = TwistStamped()
-        send_twist.twist.linear.x = lineal[0]
-        send_twist.twist.linear.y = lineal[1]
-        send_twist.twist.linear.z = lineal[2]
-
-        send_twist.twist.angular.x = angular[0]
-        send_twist.twist.angular.y = angular[1]
-        send_twist.twist.angular.z = angular[2]
-
-        self.motion_reference_twist_pub_.publish(send_twist)
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                     speed, ignore_yaw, is_gps=True)
 
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:
