@@ -63,6 +63,7 @@ from motion_reference_handlers.speed_in_a_plane import SpeedInAPlaneMotion
 
 from .shared_data.platform_info_data import PlatformInfoData
 from .shared_data.pose_data import PoseData
+from .shared_data.twist_data import TwistData
 from .shared_data.gps_data import GpsData
 
 from .behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
@@ -80,16 +81,19 @@ STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
 YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
 CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE",
                 "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]
-REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME", "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
+REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME",
+                   "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
 
 
 class DroneInterface(Node):
     """Drone interface node"""
+
     def __init__(self, drone_id: str = "drone0", verbose: bool = False,
                  use_gps: bool = False, use_sim_time: bool = False) -> None:
         super().__init__(f'{drone_id}_interface', namespace=drone_id)
 
-        self.param_use_sim_time = Parameter('use_sim_time', Parameter.Type.BOOL, use_sim_time)
+        self.param_use_sim_time = Parameter(
+            'use_sim_time', Parameter.Type.BOOL, use_sim_time)
         self.set_parameters([self.param_use_sim_time])
 
         self.__executor = rclpy.executors.SingleThreadedExecutor()
@@ -98,7 +102,7 @@ class DroneInterface(Node):
 
         self.__info = PlatformInfoData()
         self.pose = PoseData()
-        self.twist = TwistStamped()
+        self.twist = TwistData()
 
         self.namespace = drone_id
         print(f"Starting {self.drone_id}")
@@ -169,8 +173,8 @@ class DroneInterface(Node):
     def info_callback(self, msg: PlatformInfo) -> None:
         """platform info callback"""
         self.__info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
-                          msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
-                          msg.current_control_mode.reference_frame]
+                            msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
+                            msg.current_control_mode.reference_frame]
 
     def __get_info(self) -> List[int]:
         return self.__info.data
@@ -180,7 +184,7 @@ class DroneInterface(Node):
         """get drone info"""
         info = self.__get_info()
         return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]),
-                "state": STATE[info[3]],"yaw_mode": YAW_MODE[info[4]],
+                "state": STATE[info[3]], "yaw_mode": YAW_MODE[info[4]],
                 "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
 
     def pose_callback(self, pose_msg: PoseStamped) -> None:
@@ -208,12 +212,14 @@ class DroneInterface(Node):
 
     def twist_callback(self, twist_msg: TwistStamped) -> None:
         """twist stamped callback"""
-        self.twist = twist_msg
+        self.twist.twist = [twist_msg.twist.linear.x,
+                            twist_msg.twist.linear.y,
+                            twist_msg.twist.linear.z]
 
     @property
     def speed(self) -> List[float]:
         """drone speed getter"""
-        return [self.twist.linear.x, self.twist.linear.y, self.twist.linear.z]
+        return self.twist.twist
 
     def gps_callback(self, msg: NavSatFix) -> None:
         """navdata (gps) callback"""
@@ -299,7 +305,8 @@ class DroneInterface(Node):
     def go_to_point(self, point: List[float],
                     speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to"""
-        self.__go_to(point[0], point[1], point[2], speed, ignore_yaw, is_gps=False)
+        self.__go_to(point[0], point[1], point[2],
+                     speed, ignore_yaw, is_gps=False)
 
     def go_to_gps(self, lat: float, lon: float, alt: float,
                   speed: float, ignore_yaw: bool = True) -> None:
@@ -310,7 +317,8 @@ class DroneInterface(Node):
     def go_to_gps_point(self, waypoint: List[float],
                         speed: float, ignore_yaw: bool = True) -> None:
         """Drone go to gps point"""
-        self.__go_to(waypoint[0], waypoint[1], waypoint[2], speed, ignore_yaw, is_gps=True)
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                     speed, ignore_yaw, is_gps=True)
 
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:
