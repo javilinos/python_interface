@@ -50,6 +50,7 @@ from rclpy.parameter import Parameter
 import message_filters
 
 from sensor_msgs.msg import NavSatFix
+from std_msgs.msg import Bool
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
@@ -148,6 +149,9 @@ class DroneInterface(Node):
         self.position_motion_handler = PositionMotion(self)
         self.speed_motion_handler = SpeedMotion(self)
         self.speed_in_a_plane_motion_handler = SpeedInAPlaneMotion(self)
+
+        self.emergency_stop_pub = self.create_publisher(
+            Bool, "platform/stop", qos_profile_system_default)
 
         # self.__executor.add_node(self)
         # self.__executor.spin()
@@ -319,6 +323,14 @@ class DroneInterface(Node):
         """Drone go to gps point"""
         self.__go_to(waypoint[0], waypoint[1], waypoint[2],
                      speed, ignore_yaw, is_gps=True)
+
+    def emergency_stop(self):
+        """Call platform stop. BE CAREFUL, motors will stop!"""
+        msg = Bool()
+        msg.data = True
+        while True:
+            self.emergency_stop_pub.publish(msg)
+            sleep(0.01)
 
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:
