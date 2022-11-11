@@ -47,10 +47,10 @@ import rclpy.executors
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 from rclpy.parameter import Parameter
-import message_filters
 
 from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import Bool
+from std_srvs.srv import SetBool
 from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
@@ -62,20 +62,20 @@ from motion_reference_handlers.position_motion import PositionMotion
 from motion_reference_handlers.speed_motion import SpeedMotion
 from motion_reference_handlers.speed_in_a_plane import SpeedInAPlaneMotion
 
-from .shared_data.platform_info_data import PlatformInfoData
-from .shared_data.pose_data import PoseData
-from .shared_data.twist_data import TwistData
-from .shared_data.gps_data import GpsData
+from python_interface.shared_data.platform_info_data import PlatformInfoData
+from python_interface.shared_data.pose_data import PoseData
+from python_interface.shared_data.twist_data import TwistData
+from python_interface.shared_data.gps_data import GpsData
 
-from .behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
-from .behaviour_actions.takeoff_behaviour import SendTakeoff
-from .behaviour_actions.followpath_behaviour import SendFollowPath
-from .behaviour_actions.land_behaviour import SendLand
+from python_interface.behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
+from python_interface.behaviour_actions.takeoff_behaviour import SendTakeoff
+from python_interface.behaviour_actions.followpath_behaviour import SendFollowPath
+from python_interface.behaviour_actions.land_behaviour import SendLand
 
-from .service_clients.arming import Arm, Disarm
-from .service_clients.offboard import Offboard
+from python_interface.service_clients.arming import Arm, Disarm
+from python_interface.service_clients.offboard import Offboard
 
-from .tools.utils import euler_from_quaternion
+from python_interface.tools.utils import euler_from_quaternion
 
 
 STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
@@ -136,6 +136,12 @@ class DroneInterface(Node):
             GeopathToPath, f"{translator_namespace}/geopath_to_path")
         self.local_to_global_cli_ = self.create_client(
             PathToGeopath, f"{translator_namespace}/path_to_geopath")
+
+        self.trajectory_gen_cli = self.create_client(
+            SetBool, "traj_gen/run_node")
+        if not self.trajectory_gen_cli.wait_for_service(timeout_sec=3):
+            self.get_logger().warn("Trajectory generator service not found")
+            self.trajectory_gen_cli = None
 
         self.use_gps = use_gps
         self.gps = GpsData()
@@ -353,3 +359,13 @@ class DroneInterface(Node):
 
         self.spin_thread.join()
         print("Clean exit")
+
+    def send_hover(self) -> None:
+        if self.trajectory_gen_cli is None:
+            req = SetBool.Request()
+            req.data = False
+            resp = self.trajectory_gen_cli.call(req)
+            if not resp.success:
+                self.get_logger().warn("Cannot stop trajectory generator")
+        self.hover_motion_handler.send_hover()
+        print("Hover sent")
