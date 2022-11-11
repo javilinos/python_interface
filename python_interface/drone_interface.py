@@ -361,11 +361,12 @@ class DroneInterface(Node):
         print("Clean exit")
 
     def send_hover(self) -> None:
-        if self.trajectory_gen_cli is None:
+        if self.trajectory_gen_cli is not None:
+            self.get_logger().info("Calling trajectory generator")
             req = SetBool.Request()
             req.data = False
             resp = self.trajectory_gen_cli.call(req)
             if not resp.success:
                 self.get_logger().warn("Cannot stop trajectory generator")
         self.hover_motion_handler.send_hover()
-        print("Hover sent")
+        self.get_logger().info("Hover sent")
