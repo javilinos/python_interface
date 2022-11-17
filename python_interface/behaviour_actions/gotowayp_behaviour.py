@@ -46,7 +46,7 @@ from as2_msgs.srv import GeopathToPath
 from geometry_msgs.msg import PoseStamped, Pose
 from geographic_msgs.msg import GeoPoseStamped, GeoPose
 
-from ..behaviour_actions.action_handler import ActionHandler
+from python_interface.behaviour_actions.action_handler import ActionHandler
 
 if typing.TYPE_CHECKING:
     from ..drone_interface import DroneInterface
@@ -62,9 +62,17 @@ class SendGoToWaypoint(ActionHandler):
         self._drone = drone
 
         goal_msg = GoToWaypoint.Goal()
-        goal_msg.target_pose = self.get_pose(pose)
+        pose_stamped = self.get_pose(pose)
+        goal_msg.target_pose.header.frame_id = "earth"
+        goal_msg.target_pose.point.x = pose_stamped.position.x
+        goal_msg.target_pose.point.y = pose_stamped.position.y
+        goal_msg.target_pose.point.z = pose_stamped.position.z
+         
         goal_msg.max_speed = speed
-        goal_msg.ignore_pose_yaw = ignore_pose_yaw
+        if ignore_pose_yaw:
+            goal_msg.yaw_mode = GoToWaypoint.Goal.KEEP_YAW
+        else:
+            goal_msg.yaw_mode = GoToWaypoint.Goal.PATH_FACING
 
         try:
             super().__init__(self._action_client, goal_msg, drone.get_logger())
