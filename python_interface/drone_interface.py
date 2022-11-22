@@ -49,9 +49,8 @@ from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 from rclpy.parameter import Parameter
 
 from sensor_msgs.msg import NavSatFix
-from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
-from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, AlertEvent
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
@@ -156,8 +155,8 @@ class DroneInterface(Node):
         self.speed_motion_handler = SpeedMotion(self)
         self.speed_in_a_plane_motion_handler = SpeedInAPlaneMotion(self)
 
-        self.emergency_stop_pub = self.create_publisher(
-            Bool, "platform/stop", qos_profile_system_default)
+        self.alert_pub = self.create_publisher(
+            AlertEvent, "alert_event", qos_profile_system_default)
 
         # self.__executor.add_node(self)
         # self.__executor.spin()
@@ -330,14 +329,6 @@ class DroneInterface(Node):
         self.__go_to(waypoint[0], waypoint[1], waypoint[2],
                      speed, ignore_yaw, is_gps=True)
 
-    def emergency_stop(self):
-        """Call platform stop. BE CAREFUL, motors will stop!"""
-        msg = Bool()
-        msg.data = True
-        while True:
-            self.emergency_stop_pub.publish(msg)
-            sleep(0.01)
-
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:
         """Drone intern spin"""
@@ -370,3 +361,48 @@ class DroneInterface(Node):
                 self.get_logger().warn("Cannot stop trajectory generator")
         self.hover_motion_handler.send_hover()
         self.get_logger().info("Hover sent")
+
+    def send_emergency_land(self) -> None:
+        """Set controller to hover mode. yYu will have to take it control manually"""
+        msg = AlertEvent()
+        msg.alert = AlertEvent.FORCE_LAND
+        self.get_logger().info("Starting emergency landing")
+        while True and rclpy.ok():
+            self.alert_pub.publish(msg)
+            sleep(0.01)
+
+    def send_emergency_hover(self) -> None:
+        """Set controller to hover mode. yYu will have to take it control manually"""
+        msg = AlertEvent()
+        msg.alert = AlertEvent.FORCE_HOVER
+        self.get_logger().info("Starting emergency hover")
+        while True and rclpy.ok():
+            self.alert_pub.publish(msg)
+            sleep(0.01)
+
+    def send_emergency_land_to_aircraft(self) -> None:
+        """Call platform emergency land"""
+        msg = AlertEvent()
+        msg.alert = AlertEvent.EMERGENCY_LAND
+        self.get_logger().info("Starting emergency aircraft landing")
+        while True and rclpy.ok():
+            self.alert_pub.publish(msg)
+            sleep(0.01)
+
+    def send_emergency_hover_to_aircraft(self) -> None:
+        """Call platform hover. BE CAREFUL, you will have to take it control manually!"""
+        msg = AlertEvent()
+        msg.alert = AlertEvent.EMERGENCY_HOVER
+        self.get_logger().info("Starting emergency aircraft hover")
+        while True and rclpy.ok():
+            self.alert_pub.publish(msg)
+            sleep(0.01)
+
+    def send_emergency_killswitch_to_aircraft(self) -> None:
+        """Call platform stop. BE CAREFUL, motors will stop!"""
+        msg = AlertEvent()
+        msg.alert = AlertEvent.KILL_SWITCH
+        self.get_logger().info("Starting emergency aircraft killswitch")
+        while True and rclpy.ok():
+            self.alert_pub.publish(msg)
+            sleep(0.01)
