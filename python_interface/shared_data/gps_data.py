@@ -39,22 +39,27 @@ __version__ = "0.1.0"
 
 import threading
 from typing import Callable, List
+from dataclasses import dataclass, field
+
 
 lock = threading.Lock()
 
+
 def lock_decor(func: Callable) -> Callable:
     """locker"""
+
     def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
-            return func(self,*args, **kwargs)
+            return func(self, *args, **kwargs)
     return wrapper
 
 
-# TODO: change to dataclass
+@dataclass
 class GpsData:
     """GPS data [lat, lon, alt]"""
-    def __init__(self) -> None:
-        self.fix = [float('nan'), float('nan'), float('nan')]
+    __lat: float = field(default_factory=lambda: float('nan'))
+    __lon: float = field(default_factory=lambda: float('nan'))
+    __alt: float = field(default_factory=lambda: float('nan'))
 
     def __repr__(self) -> str:
         fix = self.fix
@@ -64,10 +69,12 @@ class GpsData:
     @lock_decor
     def fix(self) -> List[float]:
         """locked getter"""
-        return self.__fix
+        return [self.__lat, self.__lon, self.__alt]
 
     @fix.setter
     @lock_decor
     def fix(self, fix: List[float]) -> None:
         """locked setter"""
-        self.__fix = fix
+        self.__lat = fix[0]
+        self.__lon = fix[1]
+        self.__alt = fix[2]

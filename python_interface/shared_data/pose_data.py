@@ -37,7 +37,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 from ..shared_data.position_data import PositionData
@@ -47,8 +47,9 @@ from ..shared_data.orientation_data import OrientationData
 @dataclass
 class PoseData:
     """Pose data"""
-    __pose: PositionData = PositionData()
-    __orientation: OrientationData = OrientationData()
+    __pose: PositionData = field(default_factory=lambda: PositionData())
+    __orientation: OrientationData = field(
+        default_factory=lambda: OrientationData())
 
     def __repr__(self) -> str:
         pose = self.position

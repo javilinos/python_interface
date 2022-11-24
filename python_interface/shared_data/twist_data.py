@@ -39,7 +39,7 @@ __version__ = "0.1.0"
 
 import threading
 from typing import Callable, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 lock = threading.Lock()
 
@@ -56,9 +56,9 @@ def lock_decor(func: Callable) -> Callable:
 @dataclass
 class TwistData:
     """Twist data [vx, vy, vz]"""
-    __vx: float = float('nan')
-    __vy: float = float('nan')
-    __vz: float = float('nan')
+    __vx: float = field(default_factory=lambda: float('nan'))
+    __vy: float = field(default_factory=lambda: float('nan'))
+    __vz: float = field(default_factory=lambda: float('nan'))
 
     def __repr__(self) -> str:
         twist = self.twist

@@ -39,36 +39,56 @@ __version__ = "0.1.0"
 
 import threading
 from typing import Callable, List, Union
+from dataclasses import dataclass, field
+
+from as2_msgs.msg import PlatformStatus
+from as2_msgs.msg import ControlMode
+
 
 lock = threading.Lock()
 
+
 def lock_decor(func: Callable) -> Callable:
     """locker decorator"""
+
     def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
-            return func(self,*args, **kwargs)
+            return func(self, *args, **kwargs)
     return wrapper
 
 
-# TODO: change to dataclass
+@dataclass
 class PlatformInfoData:
-    """Platform info [connected armed offboard state yaw_mode control_mode reference_frame]"""
-    def __init__(self) -> None:
-        self.data = [0, 0, 0, 0, 0, 0, 0]
+    """Platform info"""
+    __connected: bool = field(default_factory=lambda: False)
+    __armed: bool = field(default_factory=lambda: False)
+    __offboard: bool = field(default_factory=lambda: False)
+    __state: int = field(default_factory=lambda: PlatformStatus.DISARMED)
+    __yaw_mode: int = field(default_factory=lambda: ControlMode.NONE)
+    __control_mode: int = field(default_factory=lambda: ControlMode.UNSET)
+    __reference_frame: int = field(
+        default_factory=lambda: ControlMode.UNDEFINED_FRAME)
 
     def __repr__(self) -> str:
         info = self.data
-        return f"[{bool(info[0])}, {bool(info[1])}, {bool(info[2])}, \
+        return f"[{info[0]}, {info[1]}, {info[2]}, \
                  {info[3]}, {info[4]}, {info[5]}, {info[6]}]"
 
     @property
     @lock_decor
     def data(self) -> List[Union[bool, int]]:
         """locked getter"""
-        return self.__data
+        return [self.__connected, self.__armed, self.__offboard, self.__state,
+                self.__yaw_mode, self.__control_mode, self.__reference_frame]
 
     @data.setter
     @lock_decor
     def data(self, dat: List[Union[bool, int]]) -> None:
         """locked setter"""
-        self.__data = dat
+        self.__connected = bool(dat[0])
+        self.__armed = bool(dat[1])
+        self.__offboard = bool(dat[2])
+        self.__state = dat[3]
+        self.__yaw_mode = dat[4]
+        self.__control_mode = dat[5]
+        self.__reference_frame = dat[6]

@@ -37,24 +37,28 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
+from dataclasses import dataclass, field
 import threading
 from typing import Callable, List
 
 lock = threading.Lock()
 
+
 def lock_decor(func: Callable) -> Callable:
     """locker decorator"""
+
     def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
-            return func(self,*args, **kwargs)
+            return func(self, *args, **kwargs)
     return wrapper
 
 
-# TODO: change to dataclass
+@dataclass
 class PositionData:
     """Position data [x y z]"""
-    def __init__(self) -> None:
-        self.position = [float('nan'), float('nan'), float('nan')]
+    __x: float = field(default_factory=lambda: float('nan'))
+    __y: float = field(default_factory=lambda: float('nan'))
+    __z: float = field(default_factory=lambda: float('nan'))
 
     def __repr__(self) -> str:
         pos = self.position
@@ -64,10 +68,12 @@ class PositionData:
     @lock_decor
     def position(self) -> List[float]:
         """locked getter"""
-        return self.__position
+        return [self.__x, self.__y, self.__z]
 
     @position.setter
     @lock_decor
     def position(self, pos: List[float]) -> None:
         """locked settter"""
-        self.__position = pos
+        self.__x = pos[0]
+        self.__y = pos[1]
+        self.__z = pos[2]

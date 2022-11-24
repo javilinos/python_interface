@@ -37,24 +37,28 @@ __license__ = "BSD-3-Clause"
 __version__ = "0.1.0"
 
 
+from dataclasses import dataclass, field
 import threading
 from typing import Callable, List
 
 lock = threading.Lock()
 
+
 def lock_decor(func: Callable) -> Callable:
     """locker decorator"""
+
     def wrapper(self, *args, **kwargs) -> Callable:
         with lock:
-            return func(self,*args, **kwargs)
+            return func(self, *args, **kwargs)
     return wrapper
 
 
-# TODO: change to dataclass
+@dataclass
 class OrientationData:
-    """Orientation data [roll pitch yaw]"""
-    def __init__(self) -> None:
-        self.orientation = [float('nan'), float('nan'), float('nan')]
+    """Orientation data [roll pitch yaw] in radians"""
+    __roll: float = field(default_factory=lambda: float('nan'))
+    __pitch: float = field(default_factory=lambda: float('nan'))
+    __yaw: float = field(default_factory=lambda: float('nan'))
 
     def __repr__(self) -> str:
         orient = self.orientation
@@ -64,10 +68,12 @@ class OrientationData:
     @lock_decor
     def orientation(self) -> List[float]:
         """locked getter"""
-        return self.__orientation
+        return [self.__roll, self.__pitch, self.__yaw]
 
     @orientation.setter
     @lock_decor
     def orientation(self, orient: List[float]) -> None:
         """locked setter"""
-        self.__orientation = orient
+        self.__roll = orient[0]
+        self.__pitch = orient[1]
+        self.__yaw = orient[2]

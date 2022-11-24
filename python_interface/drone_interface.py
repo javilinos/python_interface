@@ -77,14 +77,6 @@ from python_interface.service_clients.offboard import Offboard
 from python_interface.tools.utils import euler_from_quaternion
 
 
-STATE = ["DISARMED", "LANDED", "TAKING_OFF", "FLYING", "LANDING", "EMERGENCY"]
-YAW_MODE = ["NONE", "YAW_ANGLE", "YAW_SPEED"]
-CONTROL_MODE = ["UNSET", "HOVER", "POSITION", "SPEED", "SPEED_IN_A_PLANE",
-                "ATTITUDE", "ACRO", "TRAJECTORY", "ACEL"]
-REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME",
-                   "BODY_FLU_FRAME", "GLOBAL_ENU_FRAME"]
-
-
 class DroneInterface(Node):
     """Drone interface node"""
 
@@ -101,8 +93,9 @@ class DroneInterface(Node):
             self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         self.__info = PlatformInfoData()
-        self.pose = PoseData()
-        self.twist = TwistData()
+        self.__pose = PoseData()
+        self.__twist = TwistData()
+        self.__gps = GpsData()
 
         self.namespace = drone_id
         print(f"Starting {self.drone_id}")
@@ -143,7 +136,6 @@ class DroneInterface(Node):
             self.trajectory_gen_cli = None
 
         self.use_gps = use_gps
-        self.gps = GpsData()
         if self.use_gps:
             self.set_origin_cli_ = self.create_client(
                 SetOrigin, f"{translator_namespace}/set_origin")
@@ -181,7 +173,7 @@ class DroneInterface(Node):
 
     def info_callback(self, msg: PlatformInfo) -> None:
         """platform info callback"""
-        self.__info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
+        self.__info.data = [msg.connected, msg.armed, msg.offboard, msg.status.state,
                             msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
                             msg.current_control_mode.reference_frame]
 
@@ -192,17 +184,17 @@ class DroneInterface(Node):
     def info(self) -> Dict[str, Union[bool, str]]:
         """get drone info"""
         info = self.__get_info()
-        return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]),
-                "state": STATE[info[3]], "yaw_mode": YAW_MODE[info[4]],
-                "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
+        return {"connected": info[0], "armed": info[1], "offboard": info[2],
+                "state": info[3], "yaw_mode": info[4],
+                "control_mode": info[5], "reference_frame": info[6]}
 
     def pose_callback(self, pose_msg: PoseStamped) -> None:
         """pose stamped callback"""
-        self.pose.position = [pose_msg.pose.position.x,
-                              pose_msg.pose.position.y,
-                              pose_msg.pose.position.z]
+        self.__pose.position = [pose_msg.pose.position.x,
+                                pose_msg.pose.position.y,
+                                pose_msg.pose.position.z]
 
-        self.pose.orientation = [
+        self.__pose.orientation = [
             *euler_from_quaternion(
                 pose_msg.pose.orientation.x,
                 pose_msg.pose.orientation.y,
@@ -212,32 +204,32 @@ class DroneInterface(Node):
     @property
     def position(self) -> List[float]:
         """drone position getter"""
-        return self.pose.position
+        return self.__pose.position
 
     @property
     def orientation(self) -> List[float]:
         """drone orientation getter"""
-        return self.pose.orientation
+        return self.__pose.orientation
 
     def twist_callback(self, twist_msg: TwistStamped) -> None:
         """twist stamped callback"""
-        self.twist.twist = [twist_msg.twist.linear.x,
-                            twist_msg.twist.linear.y,
-                            twist_msg.twist.linear.z]
+        self.__twist.twist = [twist_msg.twist.linear.x,
+                              twist_msg.twist.linear.y,
+                              twist_msg.twist.linear.z]
 
     @property
     def speed(self) -> List[float]:
         """drone speed getter"""
-        return self.twist.twist
+        return self.__twist.twist
 
     def gps_callback(self, msg: NavSatFix) -> None:
         """navdata (gps) callback"""
-        self.gps.fix = [msg.latitude, msg.longitude, msg.altitude]
+        self.__gps.fix = [msg.latitude, msg.longitude, msg.altitude]
 
     @property
     def gps_pose(self) -> List[float]:
         """gps pose getter"""
-        return self.gps.fix
+        return self.__gps.fix
 
     def set_home(self, gps_pose_: List[float]) -> None:
         """Set home origin"""
