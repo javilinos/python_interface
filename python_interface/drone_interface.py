@@ -1,5 +1,4 @@
-"""
-A collection of utils to easily command drones with AeroStack2.
+"""Python interface to easily command drones with AeroStack2.
 """
 
 # Copyright (c) 2022 Universidad Politécnica de Madrid
@@ -86,10 +85,25 @@ REFERENCE_FRAME = ["UNDEFINED_FRAME", "LOCAL_ENU_FRAME",
 
 
 class DroneInterface(Node):
-    """Drone interface node"""
+    """Drone abstraction interface. Offers different methods to command the drone.
+
+    :param Node: ROS2 node where the interface will be executed
+    :type Node: rclpy.node.Node
+    """
 
     def __init__(self, drone_id: str = "drone0", verbose: bool = False,
                  use_gps: bool = False, use_sim_time: bool = False) -> None:
+        """Constructor method
+
+        :param drone_id: drone namespace, defaults to "drone0"
+        :type drone_id: str, optional
+        :param verbose: output mode, defaults to False
+        :type verbose: bool, optional
+        :param use_gps: use gps sensor, defaults to False
+        :type use_gps: bool, optional
+        :param use_sim_time: use simulation time, defaults to False
+        :type use_sim_time: bool, optional
+        """
         super().__init__(f'{drone_id}_interface', namespace=drone_id)
 
         self.param_use_sim_time = Parameter(
@@ -105,10 +119,10 @@ class DroneInterface(Node):
         self.twist = TwistData()
 
         self.namespace = drone_id
-        print(f"Starting {self.drone_id}")
+        self.get_logger().info(f"Starting {self.drone_id}")
 
         self.info_sub = self.create_subscription(
-            PlatformInfo, 'platform/info', self.info_callback, qos_profile_system_default)
+            PlatformInfo, 'platform/info', self.__info_callback, qos_profile_system_default)
 
         # TODO: Synchronious callbacks to pose and twist
         # self.pose_sub = message_filters.Subscriber(self, PoseStamped,
@@ -122,13 +136,13 @@ class DroneInterface(Node):
 
         # State subscriber
         self.pose_sub = self.create_subscription(
-            PoseStamped, 'self_localization/pose', self.pose_callback, qos_profile_sensor_data)
+            PoseStamped, 'self_localization/pose', self.__pose_callback, qos_profile_sensor_data)
 
         self.twist_sub = self.create_subscription(
-            TwistStamped, 'self_localization/twist', self.twist_callback, qos_profile_sensor_data)
+            TwistStamped, 'self_localization/twist', self.__twist_callback, qos_profile_sensor_data)
 
         self.gps_sub = self.create_subscription(
-            NavSatFix, 'sensor_measurements/gps', self.gps_callback, qos_profile_sensor_data)
+            NavSatFix, 'sensor_measurements/gps', self.__gps_callback, qos_profile_sensor_data)
 
         translator_namespace = self.namespace
         self.global_to_local_cli_ = self.create_client(
@@ -158,28 +172,69 @@ class DroneInterface(Node):
         self.alert_pub = self.create_publisher(
             AlertEvent, "alert_event", qos_profile_system_default)
 
-        # self.__executor.add_node(self)
-        # self.__executor.spin()
-        # self.__executor.shutdown()
-        # rclpy.shutdown()
-
         self.keep_running = True
         self.__executor.add_node(self)
-        self.spin_thread = threading.Thread(target=self.auto_spin)
+        self.spin_thread = threading.Thread(target=self.__auto_spin)
         self.spin_thread.start()
 
         sleep(0.5)
         self.get_logger().info(f'{self.drone_id} interface initialized')
 
     def __del__(self) -> None:
-        self.shutdown()
+        self.__shutdown()
 
     @property
     def drone_id(self) -> str:
-        """drone id / namespace getter"""
+        """Get drone id (namespace).
+
+        :rtype: str
+        """
         return self.namespace
 
-    def info_callback(self, msg: PlatformInfo) -> None:
+    @property
+    def info(self) -> Dict[str, Union[bool, str]]:
+        """Get drone info.
+
+        :rtype: Dict[str, Union[bool, str]]
+        """
+        info = self.__get_info()
+        return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]),
+                "state": STATE[info[3]], "yaw_mode": YAW_MODE[info[4]],
+                "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
+
+    @property
+    def position(self) -> List[float]:
+        """Get drone position (x, y, z) in m.
+
+        :rtype: List[float]
+        """
+        return self.pose.position
+
+    @property
+    def orientation(self) -> List[float]:
+        """Get drone orientation (roll, pitch, yaw) in rad.
+
+        :rtype: List[float]
+        """
+        return self.pose.orientation
+
+    @property
+    def speed(self) -> List[float]:
+        """Get drone speed (vx, vy, vz) in m/s.
+
+        :rtype: List[float]
+        """
+        return self.twist.twist
+
+    @property
+    def gps_pose(self) -> List[float]:
+        """Get GPS position (lat, lon, alt) in deg and m.
+
+        :rtype: List[float]
+        """
+        return self.gps.fix
+
+    def __info_callback(self, msg: PlatformInfo) -> None:
         """platform info callback"""
         self.__info.data = [int(msg.connected), int(msg.armed), int(msg.offboard), msg.status.state,
                             msg.current_control_mode.yaw_mode, msg.current_control_mode.control_mode,
@@ -188,15 +243,7 @@ class DroneInterface(Node):
     def __get_info(self) -> List[int]:
         return self.__info.data
 
-    @property
-    def info(self) -> Dict[str, Union[bool, str]]:
-        """get drone info"""
-        info = self.__get_info()
-        return {"connected": bool(info[0]), "armed": bool(info[1]), "offboard": bool(info[2]),
-                "state": STATE[info[3]], "yaw_mode": YAW_MODE[info[4]],
-                "control_mode": CONTROL_MODE[info[5]], "reference_frame": REFERENCE_FRAME[info[6]]}
-
-    def pose_callback(self, pose_msg: PoseStamped) -> None:
+    def __pose_callback(self, pose_msg: PoseStamped) -> None:
         """pose stamped callback"""
         self.pose.position = [pose_msg.pose.position.x,
                               pose_msg.pose.position.y,
@@ -209,37 +256,17 @@ class DroneInterface(Node):
                 pose_msg.pose.orientation.z,
                 pose_msg.pose.orientation.w)]
 
-    @property
-    def position(self) -> List[float]:
-        """drone position getter"""
-        return self.pose.position
-
-    @property
-    def orientation(self) -> List[float]:
-        """drone orientation getter"""
-        return self.pose.orientation
-
-    def twist_callback(self, twist_msg: TwistStamped) -> None:
+    def __twist_callback(self, twist_msg: TwistStamped) -> None:
         """twist stamped callback"""
         self.twist.twist = [twist_msg.twist.linear.x,
                             twist_msg.twist.linear.y,
                             twist_msg.twist.linear.z]
 
-    @property
-    def speed(self) -> List[float]:
-        """drone speed getter"""
-        return self.twist.twist
-
-    def gps_callback(self, msg: NavSatFix) -> None:
+    def __gps_callback(self, msg: NavSatFix) -> None:
         """navdata (gps) callback"""
         self.gps.fix = [msg.latitude, msg.longitude, msg.altitude]
 
-    @property
-    def gps_pose(self) -> List[float]:
-        """gps pose getter"""
-        return self.gps.fix
-
-    def set_home(self, gps_pose_: List[float]) -> None:
+    def __set_home(self, gps_pose_: List[float]) -> None:
         """Set home origin"""
         if not self.set_origin_cli_.wait_for_service(timeout_sec=3):
             self.get_logger().error("GPS service not available")
@@ -253,43 +280,38 @@ class DroneInterface(Node):
         if not resp.success:
             self.get_logger().warn("Origin already set")
 
-    def __follow_path(self, path: Path, speed: float, yaw_mode: int, is_gps: bool = False) -> None:
-        path_data = SendFollowPath.FollowPathData(
-            path, speed, yaw_mode, is_gps)
-        SendFollowPath(self, path_data)
-
-    def takeoff(self, height: float = 1.0, speed: float = 0.5) -> None:
-        """Drone takeoff"""
-        if self.use_gps:
-            self.set_home(self.gps_pose)
-
-        SendTakeoff(self, float(height), float(speed))
-
-    def follow_path(self, path: Path, speed: float = 1.0,
-                    yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
-        """Drone follow path"""
-        self.__follow_path(path, speed, yaw_mode)
-
-    def follow_gps_path(self, wp_path: Path, speed: float = 1.0,
-                        yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
-        """Drone follow gps path"""
-        self.__follow_path(wp_path, speed, yaw_mode, is_gps=True)
-
     def arm(self) -> None:
-        """Drone arming"""
+        """Arm drone.
+        """
         sleep(0.1)
         Arm(self)
 
     def disarm(self) -> None:
-        """Drone disarming"""
+        """Disarm drone.
+        """
         Disarm(self)
 
     def offboard(self) -> None:
-        """Drone set offboard"""
+        """Enable offboard mode.
+        """
         Offboard(self)
 
-    def land(self, speed: float = 0.5) -> None:
-        """Drone landing"""
+    def takeoff(self, height: float, speed: float) -> None:
+        """Takeoff to given height (m) and given speed (m/s).
+
+        :type height: float
+        :type speed: float
+        """
+        if self.use_gps:
+            self.__set_home(self.gps_pose)
+
+        SendTakeoff(self, float(height), float(speed))
+
+    def land(self, speed: float) -> None:
+        """Land with given speed (m/s).
+
+        :type speed: float
+        """
         SendLand(self, float(speed))
 
     def __go_to(self, _x: float, _y: float, _z: float,
@@ -306,37 +328,112 @@ class DroneInterface(Node):
             msg.position.z = (float)(_z)
         SendGoToWaypoint(self, msg, speed, ignore_yaw)
 
+    # TODO: ignore_yaw
     def go_to(self, _x: float, _y: float, _z: float, speed: float, ignore_yaw: bool = True) -> None:
-        """Drone go to"""
+        """Go to point (m) with speed (m/s).
+
+        :type _x: float
+        :type _y: float
+        :type _z: float
+        :type speed: float
+        :type ignore_yaw: bool, optional
+        """
         self.__go_to(_x, _y, _z, speed, ignore_yaw, is_gps=False)
 
-    # TODO: python overloads?
+    # TODO: ignore_yaw
     def go_to_point(self, point: List[float],
                     speed: float, ignore_yaw: bool = True) -> None:
-        """Drone go to"""
+        """Go to point (m) with speed (m/s).
+
+        :type point: List[float]
+        :type speed: float
+        :type ignore_yaw: bool, optional
+        """
         self.__go_to(point[0], point[1], point[2],
                      speed, ignore_yaw, is_gps=False)
 
+    # TODO: ignore_yaw
     def go_to_gps(self, lat: float, lon: float, alt: float,
                   speed: float, ignore_yaw: bool = True) -> None:
-        """Drone go to gps pose"""
+        """Go to GPS point (deg, m) with speed (m/s).
+
+        :type lat: float
+        :type lon: float
+        :type alt: float
+        :type speed: float
+        :type ignore_yaw: bool, optional
+        """
         self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
 
-    # TODO: python overloads?
+    # TODO: ignore_yaw
     def go_to_gps_point(self, waypoint: List[float],
                         speed: float, ignore_yaw: bool = True) -> None:
-        """Drone go to gps point"""
+        """Go to GPS point (deg, m) with speed (m/s).
+
+        :type waypoint: List[float]
+        :type speed: float
+        :type ignore_yaw: bool, optional
+        """
         self.__go_to(waypoint[0], waypoint[1], waypoint[2],
                      speed, ignore_yaw, is_gps=True)
 
+    def __follow_path(self, path: Path, speed: float, yaw_mode: int, is_gps: bool = False) -> None:
+        path_data = SendFollowPath.FollowPathData(
+            path, speed, yaw_mode, is_gps)
+        SendFollowPath(self, path_data)
+
+    def follow_path(self, path: Path, speed: float,
+                    yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
+        """Follow path with speed (m/s) and yaw_mode.
+
+        :type path: Path
+        :type speed: float
+        :param yaw_mode: yaw_mode, defaults to TrajectoryWaypoints.KEEP_YAW
+        :type yaw_mode: int, optional
+        """
+        self.__follow_path(path, speed, yaw_mode)
+
+    def follow_gps_path(self, wp_path: Path, speed: float,
+                        yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
+        """Follow GPS path with speed (m/s) and yaw_mode.
+
+        :type path: Path
+        :type speed: float
+        :param yaw_mode: yaw_mode, defaults to TrajectoryWaypoints.KEEP_YAW
+        :type yaw_mode: int, optional
+        """
+        self.__follow_path(wp_path, speed, yaw_mode, is_gps=True)
+
+    def emergency_stop(self):
+        """Kill switch. BE CAREFUL, motors will stop!
+        """
+        msg = Bool()
+        msg.data = True
+        while True:
+            self.emergency_stop_pub.publish(msg)
+            sleep(0.01)
+
+    def hover(self) -> None:
+        """Stop and hover current position.
+        """
+        if self.trajectory_gen_cli is not None:
+            self.get_logger().info("Calling trajectory generator")
+            req = SetBool.Request()
+            req.data = False
+            resp = self.trajectory_gen_cli.call(req)
+            if not resp.success:
+                self.get_logger().warn("Cannot stop trajectory generator")
+        self.hover_motion_handler.send_hover()
+        self.get_logger().info("Hover sent")
+
     # TODO: replace with executor callbacks
-    def auto_spin(self) -> None:
-        """Drone intern spin"""
+    def __auto_spin(self) -> None:
+        """Drone inner spin"""
         while rclpy.ok() and self.keep_running:
             self.__executor.spin_once()
             sleep(0.05)
 
-    def shutdown(self) -> None:
+    def __shutdown(self) -> None:
         """Shutdown properly"""
         self.keep_running = False
         self.destroy_subscription(self.info_sub)
@@ -350,59 +447,3 @@ class DroneInterface(Node):
 
         self.spin_thread.join()
         print("Clean exit")
-
-    def send_hover(self) -> None:
-        if self.trajectory_gen_cli is not None:
-            self.get_logger().info("Calling trajectory generator")
-            req = SetBool.Request()
-            req.data = False
-            resp = self.trajectory_gen_cli.call(req)
-            if not resp.success:
-                self.get_logger().warn("Cannot stop trajectory generator")
-        self.hover_motion_handler.send_hover()
-        self.get_logger().info("Hover sent")
-
-    def send_emergency_land(self) -> None:
-        """Set controller to hover mode. yYu will have to take it control manually"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.FORCE_LAND
-        self.get_logger().info("Starting emergency landing")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
-
-    def send_emergency_hover(self) -> None:
-        """Set controller to hover mode. yYu will have to take it control manually"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.FORCE_HOVER
-        self.get_logger().info("Starting emergency hover")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
-
-    def send_emergency_land_to_aircraft(self) -> None:
-        """Call platform emergency land"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.EMERGENCY_LAND
-        self.get_logger().info("Starting emergency aircraft landing")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
-
-    def send_emergency_hover_to_aircraft(self) -> None:
-        """Call platform hover. BE CAREFUL, you will have to take it control manually!"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.EMERGENCY_HOVER
-        self.get_logger().info("Starting emergency aircraft hover")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
-
-    def send_emergency_killswitch_to_aircraft(self) -> None:
-        """Call platform stop. BE CAREFUL, motors will stop!"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.KILL_SWITCH
-        self.get_logger().info("Starting emergency aircraft killswitch")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
