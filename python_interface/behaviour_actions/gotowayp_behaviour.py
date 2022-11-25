@@ -43,6 +43,7 @@ from rclpy.action import ActionClient
 
 from as2_msgs.action import GoToWaypoint
 from as2_msgs.srv import GeopathToPath
+from as2_msgs.msg import YawMode
 from geometry_msgs.msg import PoseStamped, Pose
 from geographic_msgs.msg import GeoPoseStamped, GeoPose
 
@@ -70,9 +71,9 @@ class SendGoToWaypoint(ActionHandler):
          
         goal_msg.max_speed = speed
         if ignore_pose_yaw:
-            goal_msg.yaw_mode = GoToWaypoint.Goal.KEEP_YAW
+            goal_msg.yaw.mode = YawMode.KEEP_YAW
         else:
-            goal_msg.yaw_mode = GoToWaypoint.Goal.PATH_FACING
+            goal_msg.yaw.mode = YawMode.PATH_FACING
 
         try:
             super().__init__(self._action_client, goal_msg, drone.get_logger())
