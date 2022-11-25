@@ -55,25 +55,27 @@ if typing.TYPE_CHECKING:
 
 class SendGoToWaypoint(ActionHandler):
     """Go to action"""
+
     def __init__(self, drone: 'DroneInterface',
                  pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped],
-                 speed: float, ignore_pose_yaw: bool) -> None:
-        self._action_client = ActionClient(drone, GoToWaypoint, 'GoToWaypointBehaviour')
+                 speed: float, yaw_mode: int, yaw_angle: float) -> None:
+        self._action_client = ActionClient(
+            drone, GoToWaypoint, 'GoToWaypointBehaviour')
 
         self._drone = drone
 
         goal_msg = GoToWaypoint.Goal()
         pose_stamped = self.get_pose(pose)
-        goal_msg.target_pose.header.frame_id = "earth"
+        goal_msg.target_pose.header.stamp = self._drone.get_clock().now()
+        goal_msg.target_pose.header.frame_id = "earth"  # TODO
         goal_msg.target_pose.point.x = pose_stamped.position.x
         goal_msg.target_pose.point.y = pose_stamped.position.y
         goal_msg.target_pose.point.z = pose_stamped.position.z
-         
+
         goal_msg.max_speed = speed
-        if ignore_pose_yaw:
-            goal_msg.yaw.mode = YawMode.KEEP_YAW
-        else:
-            goal_msg.yaw.mode = YawMode.PATH_FACING
+        goal_msg.yaw.mode = yaw_mode
+        if yaw_angle:
+            goal_msg.yaw.angle = yaw_angle
 
         try:
             super().__init__(self._action_client, goal_msg, drone.get_logger())

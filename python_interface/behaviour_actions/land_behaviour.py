@@ -48,6 +48,7 @@ if typing.TYPE_CHECKING:
 
 class SendLand(ActionHandler):
     """Land action"""
+
     def __init__(self, drone: 'DroneInterface', speed: float = 0.0) -> None:
         self._action_client = ActionClient(drone, Land, 'LandBehaviour')
 

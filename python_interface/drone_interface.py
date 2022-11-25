@@ -50,7 +50,7 @@ from rclpy.parameter import Parameter
 
 from sensor_msgs.msg import NavSatFix
 from std_srvs.srv import SetBool
-from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, AlertEvent
+from as2_msgs.msg import TrajectoryWaypoints, PlatformInfo, AlertEvent, YawMode
 from as2_msgs.srv import SetOrigin, GeopathToPath, PathToGeopath
 from geometry_msgs.msg import Pose, PoseStamped, TwistStamped
 from geographic_msgs.msg import GeoPose
@@ -285,7 +285,7 @@ class DroneInterface(Node):
         SendLand(self, float(speed))
 
     def __go_to(self, _x: float, _y: float, _z: float,
-                speed: float, ignore_yaw: bool, is_gps: bool) -> None:
+                speed: float, yaw_mode: int, yaw_angle: float, is_gps: bool) -> None:
         if is_gps:
             msg = GeoPose()
             msg.position.latitude = (float)(_x)
@@ -296,30 +296,112 @@ class DroneInterface(Node):
             msg.position.x = (float)(_x)
             msg.position.y = (float)(_y)
             msg.position.z = (float)(_z)
-        SendGoToWaypoint(self, msg, speed, ignore_yaw)
 
-    def go_to(self, _x: float, _y: float, _z: float, speed: float, ignore_yaw: bool = True) -> None:
+        SendGoToWaypoint(self, msg, speed, yaw_mode, yaw_angle)
+
+    def go_to(self, _x: float, _y: float, _z: float, speed: float) -> None:
         """Drone go to"""
-        self.__go_to(_x, _y, _z, speed, ignore_yaw, is_gps=False)
+        self.__go_to(_x, _y, _z, speed, yaw_mode=YawMode.KEEP_YAW,
+                     yaw_angle=None, is_gps=False)
 
-    # TODO: python overloads?
-    def go_to_point(self, point: List[float],
-                    speed: float, ignore_yaw: bool = True) -> None:
+    def go_to_with_yaw(self, _x: float, _y: float, _z: float, speed: float, angle: float) -> None:
+        """Go to position with speed and yaw_angle
+
+        :type _x: float
+        :type _y: float
+        :type _z: float
+        :type speed: float
+        :type yaw_angle: float
+        """
+        self.__go_to(_x, _y, _z, speed, yaw_mode=YawMode.FIXED_YAW,
+                     yaw_angle=angle, is_gps=False)
+
+    def go_to_path_facing(self, _x: float, _y: float, _z: float, speed: float) -> None:
+        """Go to position facing goal with speed
+
+        :type _x: float
+        :type _y: float
+        :type _z: float
+        :type speed: float
+        """
+        self.__go_to(_x, _y, _z, speed, yaw_mode=YawMode.PATH_FACING,
+                     yaw_angle=None, is_gps=False)
+
+    def go_to_point(self, point: List[float], speed: float) -> None:
         """Drone go to"""
         self.__go_to(point[0], point[1], point[2],
-                     speed, ignore_yaw, is_gps=False)
+                     speed, yaw_mode=YawMode.KEEP_YAW, yaw_angle=None, is_gps=False)
 
-    def go_to_gps(self, lat: float, lon: float, alt: float,
-                  speed: float, ignore_yaw: bool = True) -> None:
-        """Drone go to gps pose"""
-        self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
+    def go_to_point_with_yaw(self, point: List[float], speed: float, angle: float) -> None:
+        """Go to point with speed and yaw_angle
 
-    # TODO: python overloads?
-    def go_to_gps_point(self, waypoint: List[float],
-                        speed: float, ignore_yaw: bool = True) -> None:
+        :type point: List[float]
+        :type speed: float
+        :type ignore_yaw: bool, optional
+        """
+        self.__go_to(point[0], point[1], point[2],
+                     speed, yaw_mode=YawMode.FIXED_YAW, yaw_angle=angle, is_gps=False)
+
+    def go_to_point_path_facing(self, point: List[float], speed: float) -> None:
+        """Go to point facing goal with speed
+
+        :type point: List[float]
+        :type speed: float
+        """
+        self.__go_to(point[0], point[1], point[2],
+                     speed, yaw_mode=YawMode.PATH_FACING, yaw_angle=None, is_gps=False)
+
+    def go_to_gps(self, lat: float, lon: float, alt: float, speed: float) -> None:
+        """Drone go to gps position"""
+        self.__go_to(lat, lon, alt, speed, yaw_mode=YawMode.KEEP_YAW,
+                     yaw_angle=None, is_gps=True)
+
+    def go_to_gps_with_yaw(self, lat: float, lon: float, alt: float, speed: float, angle: float) -> None:
+        """Go to gps position with speed and angle
+
+        :type lat: float
+        :type lon: float
+        :type alt: float
+        :type speed: float
+        :type angle: float
+        """
+        self.__go_to(lat, lon, alt, speed, yaw_mode=YawMode.FIXED_YAW,
+                     yaw_angle=angle, is_gps=True)
+
+    def go_to_gps_path_facing(self, lat: float, lon: float, alt: float, speed: float) -> None:
+        """Go to gps position with speed facing the goal
+
+        :type lat: float
+        :type lon: float
+        :type alt: float
+        :type speed: float
+        """
+        self.__go_to(lat, lon, alt, speed, yaw_mode=YawMode.PATH_FACING,
+                     yaw_angle=None, is_gps=True)
+
+    def go_to_gps_point(self, waypoint: List[float], speed: float) -> None:
         """Drone go to gps point"""
         self.__go_to(waypoint[0], waypoint[1], waypoint[2],
-                     speed, ignore_yaw, is_gps=True)
+                     speed, yaw_mode=YawMode.KEEP_YAW, yaw_angle=None, is_gps=True)
+
+    def go_to_gps_point_with_yaw(self, waypoint: List[float], speed: float, angle: float) -> None:
+        """Go to gps point with speed and yaw angle
+
+        :type waypoint: List[float]
+        :type speed: float
+        :type angle: float
+        """
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                     speed, yaw_mode=YawMode.FIXED_YAW, yaw_angle=angle, is_gps=True)
+
+    def go_to_gps_point_path_facing(self, waypoint: List[float], speed: float) -> None:
+        """Go to gps point with speed facing the goal
+
+        :type waypoint: List[float]
+        :type speed: float
+        """
+        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                     speed, yaw_mode=YawMode.PATH_FACING, yaw_angle=None, is_gps=True)
 
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:

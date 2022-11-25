@@ -68,7 +68,8 @@ class SendFollowPath(ActionHandler):
 
     def __init__(self, drone: 'DroneInterface',
                  path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints]) -> None:
-        self._action_client = ActionClient(drone, FollowPath, 'FollowPathBehaviour')
+        self._action_client = ActionClient(
+            drone, FollowPath, 'FollowPathBehaviour')
         self._drone = drone
 
         goal_msg = FollowPath.Goal()
