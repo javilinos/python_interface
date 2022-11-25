@@ -354,47 +354,30 @@ class DroneInterface(Node):
         self.hover_motion_handler.send_hover()
         self.get_logger().info("Hover sent")
 
-    def send_emergency_land(self) -> None:
-        """Set controller to hover mode. yYu will have to take it control manually"""
+    def __send_emergency(self, alert: int) -> None:
         msg = AlertEvent()
-        msg.alert = AlertEvent.FORCE_LAND
-        self.get_logger().info("Starting emergency landing")
+        msg.alert = alert
         while True and rclpy.ok():
             self.alert_pub.publish(msg)
             sleep(0.01)
 
+    def send_emergency_land(self) -> None:
+        """Emergency landing"""
+        self.get_logger().info("Starting emergency landing")
+        self.__send_emergency(AlertEvent.FORCE_LAND)
+
     def send_emergency_hover(self) -> None:
-        """Set controller to hover mode. yYu will have to take it control manually"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.FORCE_HOVER
-        self.get_logger().info("Starting emergency hover")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
+        """Set controller to hover mode. You will have to take the control manually"""
+        self.__send_emergency(AlertEvent.FORCE_HOVER)
 
     def send_emergency_land_to_aircraft(self) -> None:
         """Call platform emergency land"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.EMERGENCY_LAND
-        self.get_logger().info("Starting emergency aircraft landing")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
+        self.__send_emergency(AlertEvent.EMERGENCY_LAND)
 
     def send_emergency_hover_to_aircraft(self) -> None:
         """Call platform hover. BE CAREFUL, you will have to take it control manually!"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.EMERGENCY_HOVER
-        self.get_logger().info("Starting emergency aircraft hover")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
+        self.__send_emergency(AlertEvent.EMERGENCY_HOVER)
 
     def send_emergency_killswitch_to_aircraft(self) -> None:
         """Call platform stop. BE CAREFUL, motors will stop!"""
-        msg = AlertEvent()
-        msg.alert = AlertEvent.KILL_SWITCH
-        self.get_logger().info("Starting emergency aircraft killswitch")
-        while True and rclpy.ok():
-            self.alert_pub.publish(msg)
-            sleep(0.01)
+        self.__send_emergency(AlertEvent.KILL_SWITCH)
