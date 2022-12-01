@@ -48,7 +48,8 @@ if typing.TYPE_CHECKING:
 
 class SendTakeoff(ActionHandler):
     """Takeoff action"""
-    def __init__(self, drone: 'DroneInterface', height: float, speed: float) -> None:
+
+    def __init__(self, drone: 'DroneInterface', height: float, speed: float, sync: bool = True) -> None:
         self._action_client = ActionClient(drone, TakeOff, 'TakeOffBehaviour')
 
         goal_msg = TakeOff.Goal()
@@ -56,7 +57,7 @@ class SendTakeoff(ActionHandler):
         goal_msg.takeoff_speed = speed
 
         try:
-            super().__init__(self._action_client, goal_msg, drone.get_logger())
+            super().__init__(self._action_client, goal_msg, drone.get_logger(), sync)
         except self.ActionNotAvailable as err:
             drone.get_logger().error(str(err))
         except (self.GoalRejected, self.GoalFailed) as err:

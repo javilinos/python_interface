@@ -42,6 +42,7 @@ from typing import Tuple
 from rclpy.action import ActionClient
 
 from as2_msgs.action import GoToWaypoint
+from as2_msgs.msg import YawMode
 from as2_msgs.srv import GeopathToPath
 from geometry_msgs.msg import PoseStamped, Pose
 from geographic_msgs.msg import GeoPoseStamped, GeoPose
@@ -54,34 +55,36 @@ if typing.TYPE_CHECKING:
 
 class SendGoToWaypoint(ActionHandler):
     """Go to action"""
+
     def __init__(self, drone: 'DroneInterface',
                  pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped],
-                 speed: float, ignore_pose_yaw: bool) -> None:
-        self._action_client = ActionClient(drone, GoToWaypoint, 'GoToWaypointBehaviour')
+                 speed: float, ignore_pose_yaw: bool, sync: bool = True) -> None:
+        self._action_client = ActionClient(
+            drone, GoToWaypoint, 'GoToWaypointBehaviour')
 
         self._drone = drone
 
         goal_msg = GoToWaypoint.Goal()
-        pose_stamped = self.get_pose(pose)
+        pose_stamped = self.__get_pose(pose)
         goal_msg.target_pose.header.frame_id = "earth"
         goal_msg.target_pose.point.x = pose_stamped.position.x
         goal_msg.target_pose.point.y = pose_stamped.position.y
         goal_msg.target_pose.point.z = pose_stamped.position.z
-         
+
         goal_msg.max_speed = speed
         if ignore_pose_yaw:
-            goal_msg.yaw_mode = GoToWaypoint.Goal.KEEP_YAW
+            goal_msg.yaw.mode = YawMode.KEEP_YAW
         else:
-            goal_msg.yaw_mode = GoToWaypoint.Goal.PATH_FACING
+            goal_msg.yaw.mode = YawMode.PATH_FACING
 
         try:
-            super().__init__(self._action_client, goal_msg, drone.get_logger())
+            super().__init__(self._action_client, goal_msg, drone.get_logger(), sync)
         except self.ActionNotAvailable as err:
             drone.get_logger().error(str(err))
         except (self.GoalRejected, self.GoalFailed) as err:
             drone.get_logger().warn(str(err))
 
-    def get_pose(self, pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped]):
+    def __get_pose(self, pose: Tuple[Pose, PoseStamped, GeoPose, GeoPoseStamped]):
         """get pose msg"""
         if isinstance(pose, Pose):
             return pose
@@ -90,7 +93,7 @@ class SendGoToWaypoint(ActionHandler):
         if isinstance(pose, GeoPose):
             geopose = GeoPoseStamped()
             geopose.pose = pose
-            return self.get_pose(geopose)
+            return self.__get_pose(geopose)
         if isinstance(pose, GeoPoseStamped):
             req = GeopathToPath.Request()
             req.geo_path.poses = [pose]

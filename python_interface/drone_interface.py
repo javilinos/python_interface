@@ -66,6 +66,7 @@ from python_interface.shared_data.pose_data import PoseData
 from python_interface.shared_data.twist_data import TwistData
 from python_interface.shared_data.gps_data import GpsData
 
+from python_interface.behaviour_actions.action_handler import ActionHandler
 from python_interface.behaviour_actions.gotowayp_behaviour import SendGoToWaypoint
 from python_interface.behaviour_actions.takeoff_behaviour import SendTakeoff
 from python_interface.behaviour_actions.followpath_behaviour import SendFollowPath
@@ -89,7 +90,7 @@ class DroneInterface(Node):
     """Drone interface node"""
 
     def __init__(self, drone_id: str = "drone0", verbose: bool = False,
-                 use_gps: bool = False, use_sim_time: bool = False) -> None:
+                 use_gps: bool = False, use_sim_time: bool = False, sync: bool = True) -> None:
         super().__init__(f'{drone_id}_interface', namespace=drone_id)
 
         self.param_use_sim_time = Parameter(
@@ -106,6 +107,8 @@ class DroneInterface(Node):
 
         self.namespace = drone_id
         print(f"Starting {self.drone_id}")
+
+        self.sync = sync
 
         self.info_sub = self.create_subscription(
             PlatformInfo, 'platform/info', self.info_callback, qos_profile_system_default)
@@ -253,27 +256,27 @@ class DroneInterface(Node):
         if not resp.success:
             self.get_logger().warn("Origin already set")
 
-    def __follow_path(self, path: Path, speed: float, yaw_mode: int, is_gps: bool = False) -> None:
+    def __follow_path(self, path: Path, speed: float, yaw_mode: int, is_gps: bool = False) -> ActionHandler:
         path_data = SendFollowPath.FollowPathData(
             path, speed, yaw_mode, is_gps)
-        SendFollowPath(self, path_data)
+        return SendFollowPath(self, path_data, self.sync)
 
-    def takeoff(self, height: float = 1.0, speed: float = 0.5) -> None:
+    def takeoff(self, height: float = 1.0, speed: float = 0.5) -> ActionHandler:
         """Drone takeoff"""
         if self.use_gps:
             self.set_home(self.gps_pose)
 
-        SendTakeoff(self, float(height), float(speed))
+        return SendTakeoff(self, float(height), float(speed), self.sync)
 
     def follow_path(self, path: Path, speed: float = 1.0,
-                    yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
+                    yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> ActionHandler:
         """Drone follow path"""
-        self.__follow_path(path, speed, yaw_mode)
+        return self.__follow_path(path, speed, yaw_mode)
 
     def follow_gps_path(self, wp_path: Path, speed: float = 1.0,
-                        yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> None:
+                        yaw_mode: int = TrajectoryWaypoints.KEEP_YAW) -> ActionHandler:
         """Drone follow gps path"""
-        self.__follow_path(wp_path, speed, yaw_mode, is_gps=True)
+        return self.__follow_path(wp_path, speed, yaw_mode, is_gps=True)
 
     def arm(self) -> None:
         """Drone arming"""
@@ -288,12 +291,12 @@ class DroneInterface(Node):
         """Drone set offboard"""
         Offboard(self)
 
-    def land(self, speed: float = 0.5) -> None:
+    def land(self, speed: float = 0.5) -> ActionHandler:
         """Drone landing"""
-        SendLand(self, float(speed))
+        return SendLand(self, float(speed), self.sync)
 
     def __go_to(self, _x: float, _y: float, _z: float,
-                speed: float, ignore_yaw: bool, is_gps: bool) -> None:
+                speed: float, ignore_yaw: bool, is_gps: bool) -> ActionHandler:
         if is_gps:
             msg = GeoPose()
             msg.position.latitude = (float)(_x)
@@ -304,30 +307,30 @@ class DroneInterface(Node):
             msg.position.x = (float)(_x)
             msg.position.y = (float)(_y)
             msg.position.z = (float)(_z)
-        SendGoToWaypoint(self, msg, speed, ignore_yaw)
+        return SendGoToWaypoint(self, msg, speed, ignore_yaw, self.sync)
 
-    def go_to(self, _x: float, _y: float, _z: float, speed: float, ignore_yaw: bool = True) -> None:
+    def go_to(self, _x: float, _y: float, _z: float, speed: float, ignore_yaw: bool = True) -> ActionHandler:
         """Drone go to"""
-        self.__go_to(_x, _y, _z, speed, ignore_yaw, is_gps=False)
+        return self.__go_to(_x, _y, _z, speed, ignore_yaw, is_gps=False)
 
     # TODO: python overloads?
     def go_to_point(self, point: List[float],
-                    speed: float, ignore_yaw: bool = True) -> None:
+                    speed: float, ignore_yaw: bool = True) -> ActionHandler:
         """Drone go to"""
-        self.__go_to(point[0], point[1], point[2],
-                     speed, ignore_yaw, is_gps=False)
+        return self.__go_to(point[0], point[1], point[2],
+                            speed, ignore_yaw, is_gps=False)
 
     def go_to_gps(self, lat: float, lon: float, alt: float,
-                  speed: float, ignore_yaw: bool = True) -> None:
+                  speed: float, ignore_yaw: bool = True) -> ActionHandler:
         """Drone go to gps pose"""
-        self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
+        return self.__go_to(lat, lon, alt, speed, ignore_yaw, is_gps=True)
 
     # TODO: python overloads?
     def go_to_gps_point(self, waypoint: List[float],
-                        speed: float, ignore_yaw: bool = True) -> None:
+                        speed: float, ignore_yaw: bool = True) -> ActionHandler:
         """Drone go to gps point"""
-        self.__go_to(waypoint[0], waypoint[1], waypoint[2],
-                     speed, ignore_yaw, is_gps=True)
+        return self.__go_to(waypoint[0], waypoint[1], waypoint[2],
+                            speed, ignore_yaw, is_gps=True)
 
     # TODO: replace with executor callbacks
     def auto_spin(self) -> None:

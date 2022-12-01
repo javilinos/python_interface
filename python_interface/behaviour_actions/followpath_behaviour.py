@@ -67,21 +67,22 @@ class SendFollowPath(ActionHandler):
         is_gps: bool = False
 
     def __init__(self, drone: 'DroneInterface',
-                 path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints]) -> None:
-        self._action_client = ActionClient(drone, FollowPath, 'FollowPathBehaviour')
+                 path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints], sync: bool = True) -> None:
+        self._action_client = ActionClient(
+            drone, FollowPath, 'FollowPathBehaviour')
         self._drone = drone
 
         goal_msg = FollowPath.Goal()
-        goal_msg.trajectory_waypoints = self.get_traj(path_data)
+        goal_msg.trajectory_waypoints = self.__get_traj(path_data)
 
         try:
-            super().__init__(self._action_client, goal_msg, drone.get_logger())
+            super().__init__(self._action_client, goal_msg, drone.get_logger(), sync)
         except self.ActionNotAvailable as err:
             drone.get_logger().error(str(err))
         except (self.GoalRejected, self.GoalFailed) as err:
             drone.get_logger().warn(str(err))
 
-    def get_traj(self, path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints]):
+    def __get_traj(self, path_data: Union[list, tuple, Path, GeoPath, TrajectoryWaypoints]):
         """get trajectory msg"""
         if isinstance(path_data.path, list):
             if not path_data.path:  # not empty
