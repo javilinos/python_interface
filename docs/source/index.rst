@@ -14,6 +14,7 @@ python_interface provides the canonical Python API for interacting with AeroStac
    about
    examples
    api
+   modules
 
 
 Indices and tables
